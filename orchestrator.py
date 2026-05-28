@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import json
 import time
@@ -82,6 +83,36 @@ def extract_rust_code(raw_text):
 
 
 # ---------------------------------------------------------------------------
+# Planner output parsing
+# ---------------------------------------------------------------------------
+
+def parse_plan_header(plan: str) -> tuple[str, str]:
+    """Extract DESCRIPTOR and SUMMARY from the first two lines of the plan.
+    Returns (descriptor, summary) with safe fallbacks."""
+    descriptor = ""
+    summary = ""
+    for line in plan.splitlines():
+        line = line.strip()
+        if line.startswith("DESCRIPTOR:"):
+            descriptor = line.split(":", 1)[1].strip()
+        elif line.startswith("SUMMARY:"):
+            summary = line.split(":", 1)[1].strip()
+        if descriptor and summary:
+            break
+
+    # Sanitise descriptor for use in a branch name
+    descriptor = re.sub(r"[^a-zA-Z0-9_\-]", "-", descriptor).strip("-").lower()
+    descriptor = re.sub(r"-{2,}", "-", descriptor)  # collapse consecutive hyphens
+    if not descriptor:
+        descriptor = f"iter-{int(time.time())}"
+
+    if not summary:
+        summary = "(no summary provided)"
+
+    return descriptor, summary
+
+
+# ---------------------------------------------------------------------------
 # Result tracking
 # ---------------------------------------------------------------------------
 
@@ -146,12 +177,25 @@ def append_research_log(row: dict):
         "iteration", "timestamp", "branch",
         "vehicles", "distance", "time_ms",
         "gap_pct", "improves_quality", "improves_time",
+        "summary",
     ]
     with open(RESEARCH_LOG_CSV, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if not file_exists:
             writer.writeheader()
         writer.writerow(row)
+
+
+def append_history(text: str):
+    with open(RESEARCH_HISTORY_MD, "a") as f:
+        f.write(text)
+
+
+def commit_log_to_main(iteration, branch_name, timestamp):
+    """Commit research_log.csv and research_history.md updates to main."""
+    run_bash(f"git add {RESEARCH_LOG_CSV} {RESEARCH_HISTORY_MD}")
+    run_bash(f'git commit -m "LOG [{iteration}]: update research log ({branch_name})"')
+    run_bash("git push origin main")
 
 
 # ---------------------------------------------------------------------------
@@ -173,8 +217,8 @@ def generate_graphs():
         return
 
     iterations = [int(r["iteration"]) for r in rows]
-    distances  = [float(r["distance"]) if r["distance"] else None for r in rows]
-    times_ms   = [float(r["time_ms"]) if r["time_ms"] else None for r in rows]
+    distances  = [float(r["distance"]) if r.get("distance") else None for r in rows]
+    times_ms   = [float(r["time_ms"]) if r.get("time_ms") else None for r in rows]
     iq = [r["improves_quality"] == "True" for r in rows]
     it = [r["improves_time"] == "True" for r in rows]
 
@@ -191,12 +235,22 @@ def generate_graphs():
     green_patch = mpatches.Patch(color="#2ecc71", label="Improving (quality or time)")
     grey_patch  = mpatches.Patch(color="#cccccc", label="Non-improving")
 
+    def dot_label(row):
+        """Return N_descriptor from branch name, e.g. experiment/3_tabu-search -> 3_tabu-search."""
+        branch = row.get("branch", "")
+        return branch.split("/")[-1] if "/" in branch else str(row.get("iteration", ""))
+
     # --- Distance vs Iteration ---
     fig, ax = plt.subplots(figsize=(12, 5))
     valid = [(iterations[i], distances[i], colours[i]) for i in range(len(rows)) if distances[i] is not None]
     if valid:
         xi, yi, ci = zip(*valid)
         ax.scatter(xi, yi, c=ci, s=40, zorder=3)
+    for i in range(len(rows)):
+        if (iq[i] or it[i]) and distances[i] is not None:
+            ax.annotate(dot_label(rows[i]), (iterations[i], distances[i]),
+                        textcoords="offset points", xytext=(5, 4),
+                        fontsize=7, color="#1a7a40", zorder=5)
     if iq_iters:
         ax.plot(iq_iters, iq_dists, color="#27ae60", linewidth=2, zorder=4)
     ax.axhline(BKS_DISTANCE, color="#e74c3c", linestyle="--", linewidth=1.2)
@@ -218,6 +272,11 @@ def generate_graphs():
     if valid_t:
         xi, yi, ci = zip(*valid_t)
         ax.scatter(xi, yi, c=ci, s=40, zorder=3)
+    for i in range(len(rows)):
+        if (iq[i] or it[i]) and times_ms[i] is not None:
+            ax.annotate(dot_label(rows[i]), (iterations[i], times_ms[i]),
+                        textcoords="offset points", xytext=(5, 4),
+                        fontsize=7, color="#1a5276", zorder=5)
     if it_iters:
         ax.plot(it_iters, it_times, color="#2980b9", linewidth=2, zorder=4)
     ax.set_xlabel("Iteration")
@@ -317,17 +376,20 @@ if not os.path.exists(BEST_RESULT_JSON):
         "gap_pct":          gap_pct,
         "improves_quality": False,
         "improves_time":    False,
+        "summary":          "Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)",
     })
-    with open(RESEARCH_HISTORY_MD, "a") as f:
-        f.write(
-            f"## Iteration 0 (Baseline) — {time.strftime('%Y-%m-%dT%H:%M:%S')}\n"
-            f"Branch: `main`\n"
-            f"Result: {bv}v / {bd:.2f} / {bt:.0f}ms / gap {gap_pct:.2f}%\n"
-            f"Construction: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)\n\n---\n"
-        )
+    append_history(
+        f"## Iteration 0 (Baseline) — {time.strftime('%Y-%m-%dT%H:%M:%S')}\n"
+        f"Branch: `main`\n"
+        f"Result: {bv}v / {bd:.2f} / {bt:.0f}ms / gap {gap_pct:.2f}%\n"
+        f"Construction: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)\n\n---\n"
+    )
     generate_graphs()
     update_readme_graphs()
-    print("[Bootstrap] Baseline seeded.\n")
+    run_bash(f"git add {RESEARCH_LOG_CSV} {RESEARCH_HISTORY_MD} {BEST_RESULT_JSON} graphs/ README.md")
+    run_bash('git commit -m "LOG [0]: baseline seeded"')
+    run_bash("git push origin main")
+    print("[Bootstrap] Baseline seeded and committed to main.\n")
 
 loop_iteration = get_iteration_count()
 
@@ -342,21 +404,17 @@ while True:
         break
 
     loop_iteration += 1
-    exp_id = int(time.time())
-    branch_name = f"experiment/opt-{exp_id}"
     timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
 
+    # -----------------------------------------------------------------------
+    # Start on main; read state
+    # -----------------------------------------------------------------------
     run_bash("git checkout main")
 
     best = load_best_result()
     base_vehicles = best["vehicles"] if best else 9999
     base_distance = best["distance"] if best else float("inf")
     base_time_ms  = best["time_ms"]  if best else float("inf")
-
-    print(f"\n>>> Iteration {loop_iteration} | Branch: {branch_name}")
-    print(f"    Baseline: {base_vehicles}v / {base_distance:.2f} / {base_time_ms:.0f}ms")
-
-    run_bash(f"git checkout -b {branch_name}")
 
     with open("src/main.rs", "r") as f:
         current_code = f.read()
@@ -367,8 +425,10 @@ while True:
             prior_history = f.read()
 
     # -----------------------------------------------------------------------
-    # PHASE 1: PLANNING (DeepSeek)
+    # PHASE 1: PLANNING (DeepSeek) — runs on main before branch is created
     # -----------------------------------------------------------------------
+    print(f"\n>>> Iteration {loop_iteration}")
+    print(f"    Baseline: {base_vehicles}v / {base_distance:.2f} / {base_time_ms:.0f}ms")
     print(f"[{PLANNER}] Devising strategy...")
 
     user_planner = (
@@ -383,12 +443,15 @@ while True:
     plan = call_local_llm(PLANNER, SYS_PLANNER, user_planner)
     force_unload(PLANNER)
 
-    if "REJECTED" in plan:
-        print(">>> Strategy rejected by planner. Cleaning up.")
-        run_bash("git checkout main")
-        run_bash(f"git branch -D {branch_name}")
-        loop_iteration -= 1
-        continue
+    descriptor, summary = parse_plan_header(plan)
+    branch_name = f"experiment/{loop_iteration}_{descriptor}"
+    print(f"    Branch: {branch_name}")
+    print(f"    Proposal: {summary}")
+
+    # -----------------------------------------------------------------------
+    # Create experiment branch; write the plan into it (not into main)
+    # -----------------------------------------------------------------------
+    run_bash(f"git checkout -b {branch_name}")
 
     with open(EXPERIMENT_PLAN_MD, "w") as f:
         f.write(plan)
@@ -432,8 +495,8 @@ while True:
 
     if not compiled_successfully:
         print(">>> Max repair attempts reached. Archiving branch for manual review.")
-        run_bash("git add src/main.rs")
-        run_bash(f'git commit -m "FAILED COMPILE [{loop_iteration}]: archived for review (id:{exp_id})"')
+        run_bash("git add src/main.rs experiment_plan.md")
+        run_bash(f'git commit -m "FAILED COMPILE [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
         time.sleep(COOLDOWN_S)
@@ -446,8 +509,8 @@ while True:
     build_out, build_rc = run_bash("cargo build --release 2>&1")
     if build_rc != 0:
         print("!!! Release build failed after cargo check passed. Archiving.")
-        run_bash("git add src/main.rs")
-        run_bash(f'git commit -m "FAILED BUILD [{loop_iteration}]: (id:{exp_id})"')
+        run_bash("git add src/main.rs experiment_plan.md")
+        run_bash(f'git commit -m "FAILED BUILD [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
         time.sleep(COOLDOWN_S)
@@ -485,12 +548,9 @@ while True:
     quality_improved  = is_better_solution(new_vehicles, new_distance, base_vehicles, base_distance)
     quality_worsened  = solution_worsened(new_vehicles, new_distance, base_vehicles, base_distance)
     time_improved     = new_time_ms < base_time_ms
-
-    # Accept if quality improved (runtime allowed to worsen)
-    # OR runtime improved AND quality did not worsen
     keep = quality_improved or (time_improved and not quality_worsened)
 
-    append_research_log({
+    log_row = {
         "iteration":        loop_iteration,
         "timestamp":        timestamp,
         "branch":           branch_name,
@@ -500,43 +560,62 @@ while True:
         "gap_pct":          gap_pct,
         "improves_quality": quality_improved,
         "improves_time":    time_improved,
-    })
-
-    with open(RESEARCH_HISTORY_MD, "a") as f:
-        f.write(
-            f"\n## Iteration {loop_iteration} — {timestamp}\n"
-            f"Branch: `{branch_name}`\n"
-            f"Result: {new_vehicles}v / {new_distance:.2f} / {new_time_ms:.0f}ms / gap {gap_pct:.2f}%\n"
-            f"Decision: {'KEPT' if keep else 'DISCARDED'} "
-            f"(quality_improved={quality_improved}, time_improved={time_improved})\n\n"
-            f"### Plan\n{plan}\n\n---\n"
-        )
+        "summary":          summary,
+    }
+    history_entry = (
+        f"\n## Iteration {loop_iteration} — {timestamp}\n"
+        f"Branch: `{branch_name}`\n"
+        f"Proposal: {summary}\n"
+        f"Result: {new_vehicles}v / {new_distance:.2f} / {new_time_ms:.0f}ms / gap {gap_pct:.2f}%\n"
+        f"Decision: {'KEPT' if keep else 'DISCARDED'} "
+        f"(quality_improved={quality_improved}, time_improved={time_improved})\n\n---\n"
+    )
 
     if keep:
         reason = "quality improved" if quality_improved else "runtime improved (no quality regression)"
-        print(f"*** KEEPING ({reason}). Merging to main.")
+        print(f"*** KEEPING ({reason}). Applying to main.")
         save_best_result(new_vehicles, new_distance, new_time_ms, loop_iteration, branch_name)
+        append_research_log(log_row)
+        append_history(history_entry)
         generate_graphs()
         update_readme_graphs()
+        # Commit everything (including experiment_plan.md) to the experiment branch for reference
         run_bash("git add .")
         run_bash(
             f'git commit -m "IMPROVEMENT [{loop_iteration}]: '
-            f'{new_vehicles}v {new_distance:.2f}dist {new_time_ms:.0f}ms (id:{exp_id})"'
+            f'{new_vehicles}v {new_distance:.2f}dist {new_time_ms:.0f}ms ({descriptor})"'
         )
+        # Apply only the files we want to main — experiment_plan.md stays on the branch
         run_bash("git checkout main")
-        run_bash(f"git merge {branch_name}")
+        run_bash(f"git checkout {branch_name} -- src/main.rs")
+        run_bash(f"git checkout {branch_name} -- {BEST_RESULT_JSON}")
+        run_bash(f"git checkout {branch_name} -- {RESEARCH_LOG_CSV}")
+        run_bash(f"git checkout {branch_name} -- {RESEARCH_HISTORY_MD}")
+        run_bash(f"git checkout {branch_name} -- graphs/")
+        run_bash(f"git checkout {branch_name} -- README.md")
+        run_bash(
+            f'git commit -m "IMPROVEMENT [{loop_iteration}]: '
+            f'{new_vehicles}v {new_distance:.2f}dist {new_time_ms:.0f}ms ({descriptor})"'
+        )
         run_bash("git push origin main")
-        run_bash(f"git branch -D {branch_name}")
     else:
         print(f"--- Not dominant. Archiving branch.")
+        # Commit experiment results to the experiment branch
+        append_research_log(log_row)
+        append_history(history_entry)
         generate_graphs()
         run_bash("git add .")
         run_bash(
             f'git commit -m "ARCHIVE [{loop_iteration}]: '
-            f'{new_vehicles}v {new_distance:.2f}dist {new_time_ms:.0f}ms (id:{exp_id})"'
+            f'{new_vehicles}v {new_distance:.2f}dist {new_time_ms:.0f}ms ({descriptor})"'
         )
         run_bash(f"git push origin {branch_name}")
+        # Switch to main and re-apply the log entries so main is always complete
         run_bash("git checkout main")
+        append_research_log(log_row)
+        append_history(history_entry)
+        generate_graphs()
+        commit_log_to_main(loop_iteration, branch_name, timestamp)
 
     print(f"[Loop] Cooling down {COOLDOWN_S}s...")
     time.sleep(COOLDOWN_S)
