@@ -165,10 +165,25 @@ def solution_worsened(new_v, new_d, best_v, best_d):
 
 
 def get_iteration_count():
-    if not os.path.exists(RESEARCH_LOG_CSV):
-        return 0
-    with open(RESEARCH_LOG_CSV, "r") as f:
-        return sum(1 for line in f) - 1  # minus header
+    """Return the highest iteration number seen across the log CSV and history file.
+    Using max-value (not row-count) ensures a correct resume point even when
+    compile-fail / timeout iterations are recorded in history but not in the CSV."""
+    max_iter = 0
+    if os.path.exists(RESEARCH_LOG_CSV):
+        with open(RESEARCH_LOG_CSV, "r") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    max_iter = max(max_iter, int(row["iteration"]))
+                except (ValueError, KeyError):
+                    pass
+    if os.path.exists(RESEARCH_HISTORY_MD):
+        with open(RESEARCH_HISTORY_MD, "r") as f:
+            for line in f:
+                m = re.match(r"^## Iteration (\d+)", line)
+                if m:
+                    max_iter = max(max_iter, int(m.group(1)))
+    return max_iter
 
 
 def append_research_log(row: dict):
@@ -499,6 +514,17 @@ while True:
         run_bash(f'git commit -m "FAILED COMPILE [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
+        append_history(
+            f"\n## Iteration {loop_iteration} — {timestamp}\n"
+            f"Branch: `{branch_name}`\n"
+            f"Proposal: {summary}\n"
+            f"Result: FAILED COMPILE — exhausted {MAX_REPAIR_ATTEMPTS} repair attempts\n"
+            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
+            f"Decision: DISCARDED\n\n---\n"
+        )
+        run_bash(f"git add {RESEARCH_HISTORY_MD}")
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: compile-fail ({branch_name})"')
+        run_bash("git push origin main")
         time.sleep(COOLDOWN_S)
         continue
 
@@ -513,6 +539,17 @@ while True:
         run_bash(f'git commit -m "FAILED BUILD [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
+        append_history(
+            f"\n## Iteration {loop_iteration} — {timestamp}\n"
+            f"Branch: `{branch_name}`\n"
+            f"Proposal: {summary}\n"
+            f"Result: FAILED RELEASE BUILD — cargo check passed but cargo build --release failed\n"
+            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
+            f"Decision: DISCARDED\n\n---\n"
+        )
+        run_bash(f"git add {RESEARCH_HISTORY_MD}")
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: build-fail ({branch_name})"')
+        run_bash("git push origin main")
         time.sleep(COOLDOWN_S)
         continue
 
@@ -523,19 +560,45 @@ while True:
             timeout=SOLVER_TIMEOUT_S
         )
     except subprocess.TimeoutExpired:
-        print("!!! Solver timed out. Discarding.")
+        print("!!! Solver timed out. Archiving branch.")
+        run_bash("git add experiment_plan.md src/main.rs")
+        run_bash(f'git commit -m "TIMEOUT [{loop_iteration}]: {descriptor}"')
+        run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
-        run_bash(f"git branch -D {branch_name}")
+        append_history(
+            f"\n## Iteration {loop_iteration} — {timestamp}\n"
+            f"Branch: `{branch_name}`\n"
+            f"Proposal: {summary}\n"
+            f"Result: TIMEOUT — solver exceeded {SOLVER_TIMEOUT_S}s\n"
+            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
+            f"Decision: DISCARDED\n\n---\n"
+        )
+        run_bash(f"git add {RESEARCH_HISTORY_MD}")
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: timeout ({branch_name})"')
+        run_bash("git push origin main")
         time.sleep(COOLDOWN_S)
         continue
 
     new_vehicles, new_distance, new_time_ms = parse_solver_output(solver_out)
 
     if new_vehicles is None or new_distance is None or new_time_ms is None:
-        print("!!! Solver produced no parseable output. Discarding.")
+        print("!!! Solver produced no parseable output. Archiving branch.")
         print(solver_out[:800])
+        run_bash("git add experiment_plan.md src/main.rs")
+        run_bash(f'git commit -m "NO-OUTPUT [{loop_iteration}]: {descriptor}"')
+        run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
-        run_bash(f"git branch -D {branch_name}")
+        append_history(
+            f"\n## Iteration {loop_iteration} — {timestamp}\n"
+            f"Branch: `{branch_name}`\n"
+            f"Proposal: {summary}\n"
+            f"Result: NO PARSEABLE OUTPUT\n"
+            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
+            f"Decision: DISCARDED\n\n---\n"
+        )
+        run_bash(f"git add {RESEARCH_HISTORY_MD}")
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: no-output ({branch_name})"')
+        run_bash("git push origin main")
         time.sleep(COOLDOWN_S)
         continue
 
