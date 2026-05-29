@@ -18,8 +18,10 @@ CODER = "qwen2.5-coder:7b"
 OLLAMA_URL = "http://localhost:11434/v1/chat/completions"
 UNLOAD_URL = "http://localhost:11434/api/generate"
 MAX_REPAIR_ATTEMPTS = 10
+LLM_RETRY_ATTEMPTS = 3        # retries on LLM network/server error (not on bad output)
 MAX_ITERATIONS = 100          # set to 0 for unlimited (Ctrl-C to stop)
 SOLVER_TIMEOUT_S = 300        # hard cap on Rust binary execution
+LLM_TIMEOUT_S = 7200          # 2h hard cap — covers DeepSeek-R1 worst-case CoT (~15k tokens at 5 tok/s) with 4x margin
 COOLDOWN_S = 10               # sleep between iterations
 INSTANCE_PATH = "instances/homberger_400_customer_instances/RC1_4_1.TXT"
 BKS_DISTANCE = 8522.90        # best known solution distance (CVRPLib)
@@ -58,18 +60,30 @@ def force_unload(model_name):
 # LLM
 # ---------------------------------------------------------------------------
 
-def call_local_llm(model, system_prompt, user_content):
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        "temperature": 0.2,
-    }
-    response = requests.post(OLLAMA_URL, json=payload, timeout=600)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+def call_local_llm(model, system_prompt, user_content, nudge=None):
+    """Call model with automatic retry on network/server errors.
+    On retries, `nudge` is prepended to user_content to discourage repeating the same failure."""
+    last_exc = None
+    for attempt in range(1, LLM_RETRY_ATTEMPTS + 1):
+        try:
+            content = (f"{nudge}\n\n{user_content}" if nudge and attempt > 1 else user_content)
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": content},
+                ],
+                "temperature": 0.2,
+            }
+            response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_TIMEOUT_S)
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            last_exc = e
+            print(f"    [LLM] Attempt {attempt}/{LLM_RETRY_ATTEMPTS} failed: {type(e).__name__}: {e}")
+            if attempt < LLM_RETRY_ATTEMPTS:
+                time.sleep(COOLDOWN_S)
+    raise last_exc
 
 
 # ---------------------------------------------------------------------------
@@ -455,7 +469,28 @@ while True:
         f"  Runtime  : {base_time_ms:.0f} ms"
     )
 
-    plan = call_local_llm(PLANNER, SYS_PLANNER, user_planner)
+    try:
+        plan = call_local_llm(
+            PLANNER, SYS_PLANNER, user_planner,
+            nudge="Your previous attempt failed or was interrupted. Please be more concise — "
+                  "keep reasoning brief and focus on a single, clearly scoped implementation plan.",
+        )
+    except Exception as e:
+        print(f"!!! Planner failed after {LLM_RETRY_ATTEMPTS} attempts: {e}")
+        force_unload(PLANNER)
+        append_history(
+            f"\n## Iteration {loop_iteration} — {timestamp}\n"
+            f"Branch: (none — planner failed before branch creation)\n"
+            f"Proposal: (none)\n"
+            f"Result: PLANNER LLM FAILURE — {type(e).__name__}\n"
+            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
+            f"Decision: DISCARDED\n\n---\n"
+        )
+        run_bash(f"git add {RESEARCH_HISTORY_MD}")
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: planner-failed"')
+        run_bash("git push origin main")
+        time.sleep(COOLDOWN_S)
+        continue
     force_unload(PLANNER)
 
     descriptor, summary = parse_plan_header(plan)
@@ -476,10 +511,33 @@ while True:
     # -----------------------------------------------------------------------
     print(f"[{CODER}] Implementing...")
 
-    new_code_raw = call_local_llm(
-        CODER, SYS_CODER,
-        f"IMPLEMENTATION PLAN:\n{plan}\n\nORIGINAL CODE:\n{current_code}"
-    )
+    try:
+        new_code_raw = call_local_llm(
+            CODER, SYS_CODER,
+            f"IMPLEMENTATION PLAN:\n{plan}\n\nORIGINAL CODE:\n{current_code}",
+            nudge="Your previous attempt failed. Return ONLY a single ```rust``` code block — "
+                  "no explanations, no markdown outside the block.",
+        )
+    except Exception as e:
+        print(f"!!! Coder failed after {LLM_RETRY_ATTEMPTS} attempts: {e}")
+        force_unload(CODER)
+        run_bash("git add experiment_plan.md")
+        run_bash(f'git commit -m "CODER-FAILED [{loop_iteration}]: {descriptor}"')
+        run_bash(f"git push origin {branch_name}")
+        run_bash("git checkout main")
+        append_history(
+            f"\n## Iteration {loop_iteration} — {timestamp}\n"
+            f"Branch: `{branch_name}`\n"
+            f"Proposal: {summary}\n"
+            f"Result: CODER LLM FAILURE — {type(e).__name__}\n"
+            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
+            f"Decision: DISCARDED\n\n---\n"
+        )
+        run_bash(f"git add {RESEARCH_HISTORY_MD}")
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: coder-failed ({branch_name})"')
+        run_bash("git push origin main")
+        time.sleep(COOLDOWN_S)
+        continue
 
     clean_code = extract_rust_code(new_code_raw)
     with open("src/main.rs", "w") as f:
@@ -498,10 +556,15 @@ while True:
         with open("src/main.rs", "r") as f:
             broken_code = f.read()
 
-        repair_raw = call_local_llm(
-            CODER, SYS_REPAIR,
-            f"COMPILER ERRORS:\n{output}\n\nBROKEN CODE:\n{broken_code}"
-        )
+        try:
+            repair_raw = call_local_llm(
+                CODER, SYS_REPAIR,
+                f"COMPILER ERRORS:\n{output}\n\nBROKEN CODE:\n{broken_code}",
+                nudge="Your previous attempt failed. Fix ALL errors and return ONLY a single ```rust``` block.",
+            )
+        except Exception as e:
+            print(f"    [LLM] Repair call failed: {type(e).__name__}: {e}. Counting as failed attempt.")
+            continue
         clean_code = extract_rust_code(repair_raw)
         with open("src/main.rs", "w") as f:
             f.write(clean_code)
