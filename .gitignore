@@ -1,4 +1,10 @@
+# Artifacts
 /target
+
+# Config
+venv/
+
+# Logs
 .claude/
 *.log
 
