@@ -1,3 +1,0 @@
-iteration,timestamp,branch,vehicles,distance,time_ms,gap_pct,improves_quality,improves_time,summary
-0,2026-05-29T10:21:01,main,39,11095.09,12742.1,30.1798,False,False,Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)
-0,2026-05-31T19:48:09,main,40,10016.21,2112.1,17.5211,False,False,Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)
