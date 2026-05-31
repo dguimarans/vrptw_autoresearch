@@ -21,3 +21,11 @@ Result: 45v / 10761.00 / 1068ms / gap 26.26%
 Decision: DISCARDED (quality_improved=False, time_improved=True)
 
 ---
+
+## Iteration 3 — 2026-05-31T23:05:37
+Branch: `experiment/3_inter-route-2opt-move`
+Proposal: Add a new `apply_inter_2opt()` function to perform 2-opt moves between routes, enabling better route merging and vehicle reduction.
+Result: 40v / 9870.11 / 2204ms / gap 15.81%
+Decision: KEPT (quality_improved=True, time_improved=False)
+
+---

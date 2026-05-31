@@ -132,32 +132,16 @@ fn apply_or_opt(prob: &Problem, routes: &mut Vec<Route>) -> bool {
                             let mut new_ri: Vec<usize> = routes[ri].customers.clone();
                             new_ri.drain(seg_start..seg_start + seg_len);
 
-                            let mut new_rj: Vec<usize> = if same {
-                                new_ri.clone()
-                            } else {
-                                routes[rj].customers.clone()
-                            };
-                            let adj = if same {
-                                if ins_pos > seg_start {
-                                    ins_pos.saturating_sub(seg_len)
-                                } else {
-                                    ins_pos
-                                }
-                                .min(new_rj.len())
-                            } else {
-                                ins_pos.min(new_rj.len())
-                            };
+                            let mut new_rj: Vec<usize> = if same { new_ri.clone() } else { routes[rj].customers.clone() };
+                            let adj = ins_pos.min(new_rj.len());
                             for (k, &s) in seg.iter().enumerate() {
                                 new_rj.insert(adj + k, s);
-                            }
-                            if same {
-                                new_ri = new_rj.clone();
                             }
 
                             if !route_feasible(prob, &new_rj, 0.0) {
                                 continue;
                             }
-                            if !same && !route_feasible(prob, &new_ri, 0.0) {
+                            if same && !route_feasible(prob, &new_ri, 0.0) {
                                 continue;
                             }
 
@@ -247,6 +231,61 @@ fn try_reduce_vehicles(prob: &Problem, routes: &mut Vec<Route>) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// Inter-route 2-opt: swap two segments between different routes
+// ---------------------------------------------------------------------------
+
+fn apply_inter_route_2opt(prob: &Problem, routes: &mut Vec<Route>) -> bool {
+    let mut improved = false;
+    for i in 0..routes.len() {
+        for j in (i + 1)..routes.len() {
+            let ri_len = routes[i].customers.len();
+            let rj_len = routes[j].customers.len();
+
+            if ri_len < 3 || rj_len < 3 {
+                continue;
+            }
+
+            for x in 0..ri_len - 2 {
+                for y in 0..rj_len - 2 {
+                    let ci = routes[i].customers[x];
+                    let ci1 = routes[i].customers[x + 1];
+                    let cj = routes[j].customers[y];
+                    let cj1 = routes[j].customers[y + 1];
+
+                    let old_d = route_distance(prob, &routes[i].customers)
+                        + route_distance(prob, &routes[j].customers);
+
+                    let new_ri: Vec<usize> = {
+                        let mut new_ri = routes[i].customers.clone();
+                        new_ri.splice(x..=x + 1, vec![cj, cj1]);
+                        new_ri
+                    };
+
+                    let new_rj: Vec<usize> = {
+                        let mut new_rj = routes[j].customers.clone();
+                        new_rj.splice(y..=y + 1, vec![ci, ci1]);
+                        new_rj
+                    };
+
+                    if !route_feasible(prob, &new_ri, 0.0) || !route_feasible(prob, &new_rj, 0.0) {
+                        continue;
+                    }
+
+                    let new_d = route_distance(prob, &new_ri) + route_distance(prob, &new_rj);
+
+                    if new_d < old_d - 1e-9 {
+                        routes[i].customers = new_ri;
+                        routes[j].customers = new_rj;
+                        improved = true;
+                    }
+                }
+            }
+        }
+    }
+    improved
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point called by main()
 // ---------------------------------------------------------------------------
 
@@ -265,7 +304,8 @@ pub fn solve(prob: &Problem) -> Vec<Route> {
     loop {
         let imp = apply_or_opt(prob, &mut routes);
         let red = try_reduce_vehicles(prob, &mut routes);
-        if !imp && !red {
+        let inter_route_imp = apply_inter_route_2opt(prob, &mut routes);
+        if !imp && !red && !inter_route_imp {
             break;
         }
     }
