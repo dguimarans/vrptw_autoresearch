@@ -1,2 +1,3 @@
 iteration,timestamp,branch,vehicles,distance,time_ms,gap_pct,improves_quality,improves_time,summary
 0,2026-05-31T22:04:56,main,40,10016.21,2090.2,17.5211,False,False,Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)
+2,2026-05-31T22:50:02,experiment/2_inter-route-2-opt,45,10761.0,1068.2,26.2598,False,True,"Modify apply_or_opt() to perform 2-opt moves across routes, enabling better vehicle reductions."
