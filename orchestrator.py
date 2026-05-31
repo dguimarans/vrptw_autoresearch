@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 # --- CONFIGURATION ---
-PLANNER = "deepseek-hybrid"
+PLANNER = "deepseek-headless"
 CODER = "qwen2.5-coder:7b"
 OLLAMA_URL = "http://localhost:11434/v1/chat/completions"
 UNLOAD_URL = "http://localhost:11434/api/generate"
@@ -30,6 +30,7 @@ RESEARCH_LOG_CSV = "research_log.csv"
 BEST_RESULT_JSON = "best_result.json"
 RESEARCH_HISTORY_MD = "research_history.md"
 EXPERIMENT_PLAN_MD = "experiment_plan.md"
+SOLUTION_FILE = "solution.txt"
 GRAPHS_DIR = "graphs"
 PROMPTS_DIR = "prompts"
 
@@ -445,8 +446,8 @@ while True:
     base_distance = best["distance"] if best else float("inf")
     base_time_ms  = best["time_ms"]  if best else float("inf")
 
-    with open("src/main.rs", "r") as f:
-        current_code = f.read()
+    with open("src/solver.rs", "r") as f:
+        current_solver_code = f.read()
 
     prior_history = ""
     if os.path.exists(RESEARCH_HISTORY_MD):
@@ -462,7 +463,7 @@ while True:
 
     user_planner = (
         f"PRIOR RESEARCH HISTORY:\n{prior_history or '(none yet — this is the first iteration)'}\n\n"
-        f"CURRENT CODE (src/main.rs):\n{current_code}\n\n"
+        f"CURRENT src/solver.rs (the ONLY file you should propose changes to):\n{current_solver_code}\n\n"
         f"CURRENT BEST PERFORMANCE:\n"
         f"  Vehicles : {base_vehicles}\n"
         f"  Distance : {base_distance:.2f}\n"
@@ -514,9 +515,9 @@ while True:
     try:
         new_code_raw = call_local_llm(
             CODER, SYS_CODER,
-            f"IMPLEMENTATION PLAN:\n{plan}\n\nORIGINAL CODE:\n{current_code}",
-            nudge="Your previous attempt failed. Return ONLY a single ```rust``` code block — "
-                  "no explanations, no markdown outside the block.",
+            f"IMPLEMENTATION PLAN:\n{plan}\n\nCURRENT src/solver.rs:\n{current_solver_code}",
+            nudge="Your previous attempt failed. Return ONLY a single ```rust``` code block "
+                  "containing the complete src/solver.rs — no explanations, no stubs.",
         )
     except Exception as e:
         print(f"!!! Coder failed after {LLM_RETRY_ATTEMPTS} attempts: {e}")
@@ -540,7 +541,7 @@ while True:
         continue
 
     clean_code = extract_rust_code(new_code_raw)
-    with open("src/main.rs", "w") as f:
+    with open("src/solver.rs", "w") as f:
         f.write(clean_code)
 
     compiled_successfully = False
@@ -553,27 +554,27 @@ while True:
             break
 
         print(f"    Compile failed. Sending errors to {CODER}...")
-        with open("src/main.rs", "r") as f:
+        with open("src/solver.rs", "r") as f:
             broken_code = f.read()
 
         try:
             repair_raw = call_local_llm(
                 CODER, SYS_REPAIR,
-                f"COMPILER ERRORS:\n{output}\n\nBROKEN CODE:\n{broken_code}",
+                f"COMPILER ERRORS:\n{output}\n\nBROKEN src/solver.rs:\n{broken_code}",
                 nudge="Your previous attempt failed. Fix ALL errors and return ONLY a single ```rust``` block.",
             )
         except Exception as e:
             print(f"    [LLM] Repair call failed: {type(e).__name__}: {e}. Counting as failed attempt.")
             continue
         clean_code = extract_rust_code(repair_raw)
-        with open("src/main.rs", "w") as f:
+        with open("src/solver.rs", "w") as f:
             f.write(clean_code)
 
     force_unload(CODER)
 
     if not compiled_successfully:
         print(">>> Max repair attempts reached. Archiving branch for manual review.")
-        run_bash("git add src/main.rs experiment_plan.md")
+        run_bash("git add src/solver.rs experiment_plan.md")
         run_bash(f'git commit -m "FAILED COMPILE [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
@@ -598,7 +599,7 @@ while True:
     build_out, build_rc = run_bash("cargo build --release 2>&1")
     if build_rc != 0:
         print("!!! Release build failed after cargo check passed. Archiving.")
-        run_bash("git add src/main.rs experiment_plan.md")
+        run_bash("git add src/solver.rs experiment_plan.md")
         run_bash(f'git commit -m "FAILED BUILD [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
@@ -624,7 +625,7 @@ while True:
         )
     except subprocess.TimeoutExpired:
         print("!!! Solver timed out. Archiving branch.")
-        run_bash("git add experiment_plan.md src/main.rs")
+        run_bash("git add experiment_plan.md src/solver.rs")
         run_bash(f'git commit -m "TIMEOUT [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
@@ -647,7 +648,7 @@ while True:
     if new_vehicles is None or new_distance is None or new_time_ms is None:
         print("!!! Solver produced no parseable output. Archiving branch.")
         print(solver_out[:800])
-        run_bash("git add experiment_plan.md src/main.rs")
+        run_bash("git add experiment_plan.md src/solver.rs")
         run_bash(f'git commit -m "NO-OUTPUT [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
@@ -667,6 +668,38 @@ while True:
 
     gap_pct = round((new_distance - BKS_DISTANCE) / BKS_DISTANCE * 100, 4)
     print(f"    Result: {new_vehicles}v / {new_distance:.2f} / {new_time_ms:.0f}ms / gap {gap_pct:.2f}%")
+
+    # -----------------------------------------------------------------------
+    # PHASE 3b: FEASIBILITY VALIDATION
+    # -----------------------------------------------------------------------
+    print("[Validator] Checking feasibility...")
+    validator_out, validator_rc = run_bash(
+        f"python3 validate.py {INSTANCE_PATH} {SOLUTION_FILE}"
+    )
+    first_line = validator_out.strip().splitlines()[0] if validator_out.strip() else "(no output)"
+    print(f"    {first_line}")
+
+    if validator_rc != 0:
+        print("!!! Solution infeasible. Archiving branch.")
+        run_bash(f"git add experiment_plan.md src/solver.rs {SOLUTION_FILE}")
+        run_bash(f'git commit -m "INFEASIBLE [{loop_iteration}]: {descriptor}"')
+        run_bash(f"git push origin {branch_name}")
+        run_bash("git checkout main")
+        append_history(
+            f"\n## Iteration {loop_iteration} — {timestamp}\n"
+            f"Branch: `{branch_name}`\n"
+            f"Proposal: {summary}\n"
+            f"Result: INFEASIBLE — solver ran but solution violates constraints\n"
+            f"Vehicles: {new_vehicles}  Distance: {new_distance:.2f}  "
+            f"Time: {new_time_ms:.0f}ms  Gap: {gap_pct:.2f}%\n"
+            f"Violations:\n{validator_out.strip()}\n"
+            f"Decision: DISCARDED\n\n---\n"
+        )
+        run_bash(f"git add {RESEARCH_HISTORY_MD}")
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: infeasible ({branch_name})"')
+        run_bash("git push origin main")
+        time.sleep(COOLDOWN_S)
+        continue
 
     # -----------------------------------------------------------------------
     # PHASE 4: ACCEPT / REJECT
@@ -713,7 +746,8 @@ while True:
         )
         # Apply only the files we want to main — experiment_plan.md stays on the branch
         run_bash("git checkout main")
-        run_bash(f"git checkout {branch_name} -- src/main.rs")
+        run_bash(f"git checkout {branch_name} -- src/solver.rs")
+        run_bash(f"git checkout {branch_name} -- {SOLUTION_FILE}")
         run_bash(f"git checkout {branch_name} -- {BEST_RESULT_JSON}")
         run_bash(f"git checkout {branch_name} -- {RESEARCH_LOG_CSV}")
         run_bash(f"git checkout {branch_name} -- {RESEARCH_HISTORY_MD}")
