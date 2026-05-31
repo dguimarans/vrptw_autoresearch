@@ -29,3 +29,12 @@ Result: 40v / 9870.11 / 2204ms / gap 15.81%
 Decision: KEPT (quality_improved=True, time_improved=False)
 
 ---
+
+## Iteration 4 — 2026-05-31T23:17:11
+Branch: `experiment/4_route-first-cluster-second`
+Proposal: Add a new route-first-cluster-second heuristic to merge nearby clusters, improving vehicle reductions.
+Result: FAILED COMPILE — exhausted 10 repair attempts
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
