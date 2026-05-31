@@ -38,3 +38,12 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 5 — 2026-05-31T23:54:55
+Branch: `experiment/5_route-first-cluster-second`
+Proposal: Implement a route-first cluster-second heuristic to improve vehicle reductions.
+Result: FAILED COMPILE — exhausted 10 repair attempts
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
