@@ -155,3 +155,12 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 18 — 2026-06-01T07:08:27
+Branch: `experiment/18_iter-1780290858`
+Proposal: (no summary provided)
+Result: NO PARSEABLE OUTPUT
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
