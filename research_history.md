@@ -47,3 +47,12 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 6 — 2026-06-01T20:03:36
+Branch: `experiment/6_inter-route-2-opt-improvement`
+Proposal: Improve the `apply_inter_route_2opt` function to reduce the number of iterations and improve feasibility checks, potentially leading to better solutions.
+Result: FAILED COMPILE — exhausted 10 repair attempts
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
