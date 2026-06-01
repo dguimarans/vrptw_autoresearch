@@ -92,3 +92,12 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 11 — 2026-06-01T02:36:53
+Branch: `experiment/11_iter-1780275354`
+Proposal: (no summary provided)
+Result: FAILED COMPILE — exhausted 10 repair attempts
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
