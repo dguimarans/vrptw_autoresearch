@@ -1,7 +1,7 @@
 # VRPTW Auto-Research Loop
 
 An autonomous optimisation research loop for the **Vehicle Routing Problem with Time Windows (VRPTW)**.
-A DeepSeek-R1 planning agent proposes algorithmic improvements; a Qwen2.5-Coder agent implements them in Rust; the orchestrator benchmarks, evaluates, and merges improvements automatically.
+A planning agent proposes algorithmic improvements; a Qwen2.5-Coder agent implements them in Rust; the orchestrator benchmarks, validates, evaluates, and merges improvements automatically.
 
 ## Problem
 
@@ -25,8 +25,9 @@ This makes them a robust all-around benchmark compared to purely random (R) or c
 
 ```
 orchestrator.py
-  ├── DeepSeek-R1:14b  (planner)   — reads research history, proposes one improvement
+  ├── Planner LLM     (planner)     — reads research history, proposes one improvement
   ├── Qwen2.5-Coder:7b (implementer) — writes Rust code, self-repairs up to 10 times
+  ├── validate.py      (validator)   — Python feasibility check before accept/reject
   └── Rust solver      (evaluator)  — cargo build --release, 300s timeout
 ```
 
@@ -37,50 +38,66 @@ Both models run locally via **Ollama** and are evicted from VRAM/RAM between pha
 ```
 for each iteration (max 100, configurable):
   1. Checkout main; read best_result.json as baseline
-  2. Create experiment/opt-<timestamp> branch
-  3. DeepSeek reads research_history.md + src/main.rs → writes experiment_plan.md
-  4. Qwen reads experiment_plan.md → rewrites src/main.rs
+  2. Create experiment/<N>_<descriptor> branch
+  3. Planner reads research_history.md + src/solver.rs → writes experiment_plan.md
+  4. Qwen reads experiment_plan.md + src/solver.rs → rewrites src/solver.rs
      └── repair loop: cargo check → fix → repeat (max 10 attempts)
   5. cargo build --release
-  6. Run solver on RC1_4_1 (hard timeout 300s)
-  7. Accept / reject:
-     ├── Quality improved (lex.)  → keep (runtime allowed to worsen)
-     ├── Runtime improved AND quality not worsened → keep
-     └── Neither improved → archive branch, do not merge
-  8. If kept: update best_result.json, regenerate graphs, merge to main, delete branch
-  9. Sleep 10s (cooling)
+  6. Run solver on RC1_4_1 (hard timeout 300s); solver writes solution.txt
+  7. Feasibility check: python3 validate.py → reports constraint violations if any
+  8. Accept / reject:
+     ├── Infeasible           → archive branch, log violations, do not merge
+     ├── Quality improved (lex.) → keep (runtime allowed to worsen)
+     └── Neither improved    → archive branch, do not merge
+  9. If kept: update best_result.json, regenerate graphs, merge to main
+  10. Sleep 10s (cooling)
 ```
 
 ### Accept / reject rule
 
-Accepting a solution that is faster but equally good in quality allows the loop to trade
-computation time for future deeper searches. A quality regression is never accepted for
-pure runtime gains.
+Quality is lexicographic: fewer vehicles first, then shorter distance. A solution is only kept
+if it strictly improves quality. Runtime is tracked for information but does not drive accept/reject.
 
-## Baseline solver (`src/main.rs`)
+## Rust solver structure
 
-The initial implementation uses:
+The solver is split into two files:
+
+- **`src/main.rs`** — infrastructure only (read-only, managed by the repo). Defines all types
+  (`Problem`, `Customer`, `Route`), utility functions (`dist`, `route_distance`, `route_feasible`,
+  `best_insertion_in_route`), instance parsing, solution output, and the `main()` entry point.
+
+- **`src/solver.rs`** — all heuristics (AI-managed). Begins with `use super::*;` to access
+  everything from main.rs. Exposes a single entry point: `pub fn solve(prob: &Problem) -> Vec<Route>`.
+
+The AI only edits `src/solver.rs`. This bounds the editing scope and prevents accidental breakage
+of the infrastructure layer.
+
+### Heuristics in `src/solver.rs`
 
 1. **Regret-2 construction** — for each unrouted customer, compute the cost difference
    between its best and second-best feasible insertion. Insert the customer with the
    highest regret (most urgent to place now). Creates an initial feasible solution.
 
-2. **Vehicle reduction** — attempt to relocate all customers from the smallest route
-   into other routes. Repeat until no further reduction is possible.
+2. **Vehicle reduction** (`try_reduce_vehicles`) — attempt to relocate all customers from the
+   smallest route into other routes using a scratch-copy approach that commits each insertion
+   immediately. Repeat until no further reduction is possible.
 
 3. **Intra-route 2-opt** — standard segment reversal with TW feasibility check.
 
 4. **Or-opt (1/2/3 segments)** — intra- and inter-route segment relocation.
    Interleaved with vehicle reduction until no improvement.
 
-### Baseline result on RC1_4\_1
+5. **Inter-route 2-opt** (`apply_inter_route_2opt`) — swap two adjacent customer pairs
+   between different routes. Added in iteration 3.
+
+### Current best result on RC1_4\_1
 
 | Metric | Value |
 |---|---|
-| Vehicles | 39 |
-| Total distance | 11095.09 |
-| Gap to BKS | ~30.2 % |
-| Runtime | ~8 s |
+| Vehicles | 40 |
+| Total distance | 9870.11 |
+| Gap to BKS | ~15.8 % |
+| Runtime | ~2.2 s |
 
 ## Running manually
 
@@ -91,11 +108,13 @@ cargo build --release
 # Solve RC1_4_1
 ./target/release/vrptw_autoresearch instances/homberger_400_customer_instances/RC1_4_1.TXT
 
-# The binary prints three machine-parseable lines to stdout:
+# The binary writes solution.txt with full route detail and prints:
 # RESULT_VEHICLES: <n>
 # RESULT_DISTANCE: <d>
 # RESULT_TIME_MS: <t>
-# Full route detail goes to stderr.
+
+# Validate the solution
+python3 validate.py instances/homberger_400_customer_instances/RC1_4_1.TXT solution.txt
 ```
 
 ## Running the research loop
@@ -108,19 +127,24 @@ pip install requests matplotlib
 #   MAX_ITERATIONS = 100   (0 = unlimited, Ctrl-C to stop)
 #   SOLVER_TIMEOUT_S = 300
 
-python orchestrator.py
+python3 -u orchestrator.py 2>&1 | tee loop.log
 ```
+
+The loop is resumable: `get_iteration_count()` scans both `research_log.csv` and
+`research_history.md` to find the last completed iteration and continues from there.
 
 ## Output files
 
 | File | Description |
 |---|---|
 | `best_result.json` | Current best solution metadata (vehicles, distance, time, iteration) |
-| `research_log.csv` | All iterations: vehicles, distance, runtime, gap%, improvement flags |
-| `research_history.md` | Append-only log of all plans and outcomes (read by DeepSeek each iteration) |
-| `experiment_plan.md` | Per-iteration plan written by DeepSeek, read by Qwen (overwritten each iteration) |
+| `research_log.csv` | All iterations: vehicles, distance, runtime, gap%, improvement flag |
+| `research_history.md` | Append-only log of all plans and outcomes (read by the planner each iteration) |
+| `experiment_plan.md` | Per-iteration plan written by the planner, read by Qwen (overwritten each iteration) |
+| `solution.txt` | Full route detail from the most recent solver run |
 | `graphs/distance_vs_iteration.png` | Solution quality evolution |
 | `graphs/runtime_vs_iteration.png` | Solver runtime evolution |
+| `graphs/quality_vs_runtime.png` | Quality vs runtime scatter (Pareto view) |
 
 <!-- GRAPHS_START -->
 ## Progress Graphs
@@ -128,6 +152,8 @@ python orchestrator.py
 ![Distance vs Iteration](graphs/distance_vs_iteration.png)
 
 ![Runtime vs Iteration](graphs/runtime_vs_iteration.png)
+
+![Quality vs Runtime](graphs/quality_vs_runtime.png)
 <!-- GRAPHS_END -->
 
 ## Instance data
@@ -141,8 +167,15 @@ Travel time equals Euclidean distance (no separate speed parameter).
 
 ```
 .
-├── src/main.rs                          # Rust VRPTW solver (single file, AI-managed)
+├── src/
+│   ├── main.rs                          # Infrastructure: types, parsing, I/O (read-only)
+│   └── solver.rs                        # Heuristics: all AI-editable code
 ├── orchestrator.py                      # Python automation loop
+├── validate.py                          # Python feasibility validator
+├── prompts/
+│   ├── sys_planner.md                   # System prompt for the planning LLM
+│   ├── sys_coder.md                     # System prompt for Qwen (implementer)
+│   └── sys_repair.md                    # System prompt for Qwen repair loop
 ├── instances/
 │   └── homberger_400_customer_instances/
 │       └── RC1_4_1.TXT                  # Benchmark instance
@@ -150,5 +183,6 @@ Travel time equals Euclidean distance (no separate speed parameter).
 ├── best_result.json                     # Current best solution (auto-updated)
 ├── research_log.csv                     # Iteration log (auto-updated)
 ├── research_history.md                  # Research notes (append-only)
-└── experiment_plan.md                   # Current iteration plan
+├── experiment_plan.md                   # Current iteration plan
+└── solution.txt                         # Most recent solver output
 ```

@@ -13,13 +13,14 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 # --- CONFIGURATION ---
-PLANNER = "deepseek-headless"
+PLANNER = "qwen2.5-coder:7b"
 CODER = "qwen2.5-coder:7b"
 OLLAMA_URL = "http://localhost:11434/v1/chat/completions"
 UNLOAD_URL = "http://localhost:11434/api/generate"
 MAX_REPAIR_ATTEMPTS = 10
 LLM_RETRY_ATTEMPTS = 3        # retries on LLM network/server error (not on bad output)
-MAX_ITERATIONS = 100          # set to 0 for unlimited (Ctrl-C to stop)
+MAX_ITERATIONS = 10           # set to 0 for unlimited (Ctrl-C to stop)
+MAX_HISTORY_FAILURES = 3      # max recent failure entries shown to planner (signal entries always kept)
 SOLVER_TIMEOUT_S = 300        # hard cap on Rust binary execution
 LLM_TIMEOUT_S = 7200          # 2h hard cap — covers DeepSeek-R1 worst-case CoT (~15k tokens at 5 tok/s) with 4x margin
 COOLDOWN_S = 10               # sleep between iterations
@@ -206,7 +207,7 @@ def append_research_log(row: dict):
     fieldnames = [
         "iteration", "timestamp", "branch",
         "vehicles", "distance", "time_ms",
-        "gap_pct", "improves_quality", "improves_time",
+        "gap_pct", "improves_quality", "improves_time", "kept",
         "summary",
     ]
     with open(RESEARCH_LOG_CSV, "a", newline="") as f:
@@ -219,6 +220,27 @@ def append_research_log(row: dict):
 def append_history(text: str):
     with open(RESEARCH_HISTORY_MD, "a") as f:
         f.write(text)
+
+
+def trim_history_for_planner(history_text: str) -> str:
+    """Keep all signal entries (finite results) + last MAX_HISTORY_FAILURES failure entries.
+
+    Signal entries contain real data (finite vehicles/distance) and are always kept regardless
+    of age — they prevent the planner cycling back to known-bad or known-good territory.
+    Failure entries (Inf quality values) carry little signal beyond "this recently failed";
+    we cap them so a long compile-fail chain doesn't drown the planner's context.
+    """
+    blocks = [b.strip() for b in history_text.split("\n---\n") if b.strip()]
+    signal  = [b for b in blocks if "Vehicles: Inf" not in b and "Distance: Inf" not in b]
+    failures = [b for b in blocks if "Vehicles: Inf" in b or "Distance: Inf" in b]
+    kept = signal + failures[-MAX_HISTORY_FAILURES:]
+
+    def iter_num(block):
+        m = re.search(r"## Iteration (\d+)", block)
+        return int(m.group(1)) if m else 0
+
+    kept.sort(key=iter_num)
+    return ("\n\n---\n\n".join(kept) + "\n\n---\n") if kept else ""
 
 
 def commit_log_to_main(iteration, branch_name, timestamp):
@@ -250,20 +272,21 @@ def generate_graphs():
     distances  = [float(r["distance"]) if r.get("distance") else None for r in rows]
     times_ms   = [float(r["time_ms"]) if r.get("time_ms") else None for r in rows]
     iq = [r["improves_quality"] == "True" for r in rows]
-    it = [r["improves_time"] == "True" for r in rows]
+    # kept: True if solution was accepted (quality improved OR faster without quality regression).
+    # Falls back to iq for CSVs written before the kept column was added.
+    kept = [r.get("kept", str(iq[i])) == "True" for i, r in enumerate(rows)]
 
     def colour(i):
-        return "#2ecc71" if (iq[i] or it[i]) else "#cccccc"
+        return "#2ecc71" if kept[i] else "#cccccc"
 
     colours = [colour(i) for i in range(len(rows))]
 
-    iq_iters = [iterations[i] for i in range(len(rows)) if iq[i] and distances[i] is not None]
-    iq_dists  = [distances[i]  for i in range(len(rows)) if iq[i] and distances[i] is not None]
-    it_iters = [iterations[i] for i in range(len(rows)) if it[i] and times_ms[i] is not None]
-    it_times  = [times_ms[i]   for i in range(len(rows)) if it[i] and times_ms[i] is not None]
+    kept_iters = [iterations[i] for i in range(len(rows)) if kept[i] and distances[i] is not None]
+    kept_dists  = [distances[i]  for i in range(len(rows)) if kept[i] and distances[i] is not None]
+    kept_times  = [times_ms[i]   for i in range(len(rows)) if kept[i] and times_ms[i] is not None]
 
-    green_patch = mpatches.Patch(color="#2ecc71", label="Improving (quality or time)")
-    grey_patch  = mpatches.Patch(color="#cccccc", label="Non-improving")
+    green_patch = mpatches.Patch(color="#2ecc71", label="Kept (quality or runtime improvement)")
+    grey_patch  = mpatches.Patch(color="#cccccc", label="Discarded")
 
     def dot_label(row):
         """Return N_descriptor from branch name, e.g. experiment/3_tabu-search -> 3_tabu-search."""
@@ -277,19 +300,19 @@ def generate_graphs():
         xi, yi, ci = zip(*valid)
         ax.scatter(xi, yi, c=ci, s=40, zorder=3)
     for i in range(len(rows)):
-        if (iq[i] or it[i]) and distances[i] is not None:
+        if kept[i] and distances[i] is not None:
             ax.annotate(dot_label(rows[i]), (iterations[i], distances[i]),
                         textcoords="offset points", xytext=(5, 4),
                         fontsize=7, color="#1a7a40", zorder=5)
-    if iq_iters:
-        ax.plot(iq_iters, iq_dists, color="#27ae60", linewidth=2, zorder=4)
+    if kept_iters:
+        ax.plot(kept_iters, kept_dists, color="#27ae60", linewidth=2, zorder=4)
     ax.axhline(BKS_DISTANCE, color="#e74c3c", linestyle="--", linewidth=1.2)
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Total Distance")
     ax.set_title("Solution Quality vs Iteration")
     ax.legend(handles=[
         green_patch, grey_patch,
-        plt.Line2D([0], [0], color="#27ae60", linewidth=2, label="Quality trend"),
+        plt.Line2D([0], [0], color="#27ae60", linewidth=2, label="Kept frontier"),
         plt.Line2D([0], [0], color="#e74c3c", linestyle="--", label=f"BKS {BKS_DISTANCE}"),
     ])
     plt.tight_layout()
@@ -303,21 +326,48 @@ def generate_graphs():
         xi, yi, ci = zip(*valid_t)
         ax.scatter(xi, yi, c=ci, s=40, zorder=3)
     for i in range(len(rows)):
-        if (iq[i] or it[i]) and times_ms[i] is not None:
+        if kept[i] and times_ms[i] is not None:
             ax.annotate(dot_label(rows[i]), (iterations[i], times_ms[i]),
                         textcoords="offset points", xytext=(5, 4),
                         fontsize=7, color="#1a5276", zorder=5)
-    if it_iters:
-        ax.plot(it_iters, it_times, color="#2980b9", linewidth=2, zorder=4)
+    if kept_iters:
+        ax.plot(kept_iters, kept_times, color="#2980b9", linewidth=2, zorder=4)
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Runtime (ms)")
     ax.set_title("Solver Runtime vs Iteration")
     ax.legend(handles=[
         green_patch, grey_patch,
-        plt.Line2D([0], [0], color="#2980b9", linewidth=2, label="Runtime trend"),
+        plt.Line2D([0], [0], color="#2980b9", linewidth=2, label="Runtime of kept solutions"),
     ])
     plt.tight_layout()
     plt.savefig(os.path.join(GRAPHS_DIR, "runtime_vs_iteration.png"), dpi=120)
+    plt.close()
+
+    # --- Quality vs Runtime (Pareto scatter) ---
+    fig, ax = plt.subplots(figsize=(8, 6))
+    valid_p = [
+        (times_ms[i], distances[i], colours[i], rows[i])
+        for i in range(len(rows))
+        if times_ms[i] is not None and distances[i] is not None
+    ]
+    if valid_p:
+        xt, yd, cp, _ = zip(*valid_p)
+        ax.scatter(xt, yd, c=cp, s=60, zorder=3)
+        for t, d, _, row in valid_p:
+            ax.annotate(dot_label(row), (t, d),
+                        textcoords="offset points", xytext=(5, 4),
+                        fontsize=7, color="#555555", zorder=5)
+    ax.axhline(BKS_DISTANCE, color="#e74c3c", linestyle="--", linewidth=1.2,
+               label=f"BKS {BKS_DISTANCE}")
+    ax.set_xlabel("Runtime (ms)")
+    ax.set_ylabel("Total Distance")
+    ax.set_title("Solution Quality vs Runtime")
+    ax.legend(handles=[
+        green_patch, grey_patch,
+        plt.Line2D([0], [0], color="#e74c3c", linestyle="--", label=f"BKS {BKS_DISTANCE}"),
+    ])
+    plt.tight_layout()
+    plt.savefig(os.path.join(GRAPHS_DIR, "quality_vs_runtime.png"), dpi=120)
     plt.close()
 
 
@@ -336,7 +386,8 @@ def update_readme_graphs():
         f"{marker_start}\n"
         "## Progress Graphs\n\n"
         "![Distance vs Iteration](graphs/distance_vs_iteration.png)\n\n"
-        "![Runtime vs Iteration](graphs/runtime_vs_iteration.png)\n"
+        "![Runtime vs Iteration](graphs/runtime_vs_iteration.png)\n\n"
+        "![Quality vs Runtime](graphs/quality_vs_runtime.png)\n"
         f"{marker_end}"
     )
     if marker_start in content and marker_end in content:
@@ -404,8 +455,9 @@ if not os.path.exists(BEST_RESULT_JSON):
         "distance":         bd,
         "time_ms":          bt,
         "gap_pct":          gap_pct,
-        "improves_quality": False,
-        "improves_time":    False,
+        "improves_quality": True,
+        "improves_time":    True,
+        "kept":             True,
         "summary":          "Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)",
     })
     append_history(
@@ -452,10 +504,10 @@ while True:
     prior_history = ""
     if os.path.exists(RESEARCH_HISTORY_MD):
         with open(RESEARCH_HISTORY_MD, "r") as f:
-            prior_history = f.read()
+            prior_history = trim_history_for_planner(f.read())
 
     # -----------------------------------------------------------------------
-    # PHASE 1: PLANNING (DeepSeek) — runs on main before branch is created
+    # PHASE 1: PLANNING (Qwen) — runs on main before branch is created
     # -----------------------------------------------------------------------
     print(f"\n>>> Iteration {loop_iteration}")
     print(f"    Baseline: {base_vehicles}v / {base_distance:.2f} / {base_time_ms:.0f}ms")
@@ -719,6 +771,7 @@ while True:
         "gap_pct":          gap_pct,
         "improves_quality": quality_improved,
         "improves_time":    time_improved,
+        "kept":             keep,
         "summary":          summary,
     }
     history_entry = (

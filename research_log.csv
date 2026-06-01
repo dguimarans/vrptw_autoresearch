@@ -1,4 +1,4 @@
-iteration,timestamp,branch,vehicles,distance,time_ms,gap_pct,improves_quality,improves_time,summary
-0,2026-05-31T22:04:56,main,40,10016.21,2090.2,17.5211,False,False,Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)
-2,2026-05-31T22:50:02,experiment/2_inter-route-2-opt,45,10761.0,1068.2,26.2598,False,True,"Modify apply_or_opt() to perform 2-opt moves across routes, enabling better vehicle reductions."
-3,2026-05-31T23:05:37,experiment/3_inter-route-2opt-move,40,9870.11,2204.4,15.8069,True,False,"Add a new `apply_inter_2opt()` function to perform 2-opt moves between routes, enabling better route merging and vehicle reduction."
+iteration,timestamp,branch,vehicles,distance,time_ms,gap_pct,improves_quality,improves_time,kept,summary
+0,2026-05-31T22:04:56,main,40,10016.21,2090.2,17.5211,True,True,True,Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)
+2,2026-05-31T22:50:02,experiment/2_inter-route-2-opt,45,10761.0,1068.2,26.2598,False,True,False,"Modify apply_or_opt() to perform 2-opt moves across routes, enabling better vehicle reductions."
+3,2026-05-31T23:05:37,experiment/3_inter-route-2opt-move,40,9870.11,2204.4,15.8069,True,False,True,"Add a new `apply_inter_2opt()` function to perform 2-opt moves between routes, enabling better route merging and vehicle reduction."
