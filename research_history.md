@@ -490,3 +490,33 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 7 — 2026-06-02T22:47:50
+Branch: `experiment/7_iter-1780433399`
+Proposal: (no summary provided)
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error[E0599]: no method named `choose` found for struct `Vec<usize>` in the current scope
+  --> src/solver.rs:11:49
+   |
+11 |             let customer = *remaining_customers.choose(&mut rand::thread_rng()).unwrap();
+   |                                                 ^^^^^^ method not found in `Vec<usize>`
+
+error[E0433]: cannot find module or crate `rand` in this scope
+  --> src/solver.rs:11:61
+   |
+11 |             let customer = *remaining_customers.choose(&mut rand::thread_rng()).unwrap();
+   |                                                             ^^^^ use of unresolved module or unlinked crate `rand`
+   |
+   = help: if you wanted to use a crate named `rand`, use `cargo add rand` to add it to your `Cargo.toml`
+
+Some errors have detailed explanations: E0433, E0599.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `vrptw_autoresearch` (bin "vrptw_autoresearch") due to 2 previous errors
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
