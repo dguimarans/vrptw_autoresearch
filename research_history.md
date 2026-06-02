@@ -1418,3 +1418,41 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 12 — 2026-06-02T23:55:04
+Branch: `experiment/12_iter-1780437517`
+Proposal: (no summary provided)
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error[E0308]: mismatched types
+  --> src/solver.rs:48:34
+   |
+48 |         routes[0].customers.push(*customer);
+   |                             ---- ^^^^^^^^^ expected `usize`, found `Customer`
+   |                             |
+   |                             arguments to this method are incorrect
+   |
+note: method defined here
+  --> /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library/alloc/src/vec/mod.rs:991:11
+
+error[E0308]: arguments to this function are incorrect
+  --> src/solver.rs:59:24
+   |
+59 |                     if dist(&route.customers[i], &route.customers[j]) < dist(&route.customers[i], &route.customers[i + 1]) + dist(&route.customers[j], &route.customers[i + 1]) {
+   |                        ^^^^ -------------------  ------------------- expected `&Customer`, found `&usize`
+   |                             |
+   |                             expected `&Customer`, found `&usize`
+   |
+   = note: expected reference `&Customer`
+              found reference `&usize`
+   = note: expected reference `&Customer`
+              found reference `&usize`
+note: function defined here
+... (142 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
