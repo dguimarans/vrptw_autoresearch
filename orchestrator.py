@@ -474,6 +474,7 @@ if not os.path.exists(BEST_RESULT_JSON):
     print("[Bootstrap] Baseline seeded and committed to main.\n")
 
 loop_iteration = get_iteration_count()
+iterations_done = 0
 
 # Load static system prompts once
 SYS_PLANNER = load_prompt("sys_planner")
@@ -481,11 +482,12 @@ SYS_CODER   = load_prompt("sys_coder")
 SYS_REPAIR  = load_prompt("sys_repair")
 
 while True:
-    if MAX_ITERATIONS > 0 and loop_iteration >= MAX_ITERATIONS:
+    if MAX_ITERATIONS > 0 and iterations_done >= MAX_ITERATIONS:
         print(f">>> Reached {MAX_ITERATIONS} iterations. Stopping.")
         break
 
     loop_iteration += 1
+    iterations_done += 1
     timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
 
     # -----------------------------------------------------------------------
