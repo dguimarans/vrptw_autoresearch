@@ -3,6 +3,7 @@
 
 # Config
 venv/
+headless_setup.sh
 
 # Logs
 .claude/

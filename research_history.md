@@ -5,15 +5,6 @@ Construction: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)
 
 ---
 
-## Iteration 1 — 2026-05-31T22:04:59
-Branch: `experiment/1_inter-2-opt-move`
-Proposal: Add a new `apply_2opt_inter` function to perform 2-opt moves between routes, improving distance.
-Result: FAILED COMPILE — exhausted 10 repair attempts
-Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
-Decision: DISCARDED
-
----
-
 ## Iteration 2 — 2026-05-31T22:50:02
 Branch: `experiment/2_inter-route-2-opt`
 Proposal: Modify apply_or_opt() to perform 2-opt moves across routes, enabling better vehicle reductions.
@@ -27,32 +18,5 @@ Branch: `experiment/3_inter-route-2opt-move`
 Proposal: Add a new `apply_inter_2opt()` function to perform 2-opt moves between routes, enabling better route merging and vehicle reduction.
 Result: 40v / 9870.11 / 2204ms / gap 15.81%
 Decision: KEPT (quality_improved=True, time_improved=False)
-
----
-
-## Iteration 4 — 2026-06-01T19:06:36
-Branch: `experiment/4_inter-route-2-opt-improvement`
-Proposal: Improve the `apply_inter_route_2opt` function to reduce the number of iterations and improve feasibility checks, potentially leading to better solutions.
-Result: FAILED COMPILE — exhausted 10 repair attempts
-Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
-Decision: DISCARDED
-
----
-
-## Iteration 5 — 2026-06-01T19:43:55
-Branch: `experiment/5_inter-route-2-opt-improvement`
-Proposal: Improve the `apply_inter_route_2opt` function to reduce the number of iterations and improve feasibility checks, potentially leading to better solutions.
-Result: FAILED COMPILE — exhausted 10 repair attempts
-Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
-Decision: DISCARDED
-
----
-
-## Iteration 6 — 2026-06-01T20:03:36
-Branch: `experiment/6_inter-route-2-opt-improvement`
-Proposal: Improve the `apply_inter_route_2opt` function to reduce the number of iterations and improve feasibility checks, potentially leading to better solutions.
-Result: FAILED COMPILE — exhausted 10 repair attempts
-Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
-Decision: DISCARDED
 
 ---

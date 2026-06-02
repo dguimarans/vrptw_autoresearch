@@ -17,7 +17,7 @@ PLANNER = "qwen2.5-coder:7b"
 CODER = "qwen2.5-coder:7b"
 OLLAMA_URL = "http://localhost:11434/v1/chat/completions"
 UNLOAD_URL = "http://localhost:11434/api/generate"
-MAX_REPAIR_ATTEMPTS = 10
+MAX_REPAIR_ATTEMPTS = 3
 LLM_RETRY_ATTEMPTS = 3        # retries on LLM network/server error (not on bad output)
 MAX_ITERATIONS = 10           # set to 0 for unlimited (Ctrl-C to stop)
 MAX_HISTORY_FAILURES = 3      # max recent failure entries shown to planner (signal entries always kept)
@@ -597,6 +597,7 @@ while True:
         f.write(clean_code)
 
     compiled_successfully = False
+    last_compile_errors = ""
     for attempt in range(1, MAX_REPAIR_ATTEMPTS + 1):
         print(f"[Compiler] Attempt {attempt}/{MAX_REPAIR_ATTEMPTS}...")
         output, rc = run_bash("cargo check 2>&1")
@@ -605,6 +606,7 @@ while True:
             compiled_successfully = True
             break
 
+        last_compile_errors = output
         print(f"    Compile failed. Sending errors to {CODER}...")
         with open("src/solver.rs", "r") as f:
             broken_code = f.read()
@@ -625,6 +627,13 @@ while True:
     force_unload(CODER)
 
     if not compiled_successfully:
+        # Truncate errors to first 25 lines so the planner can read the root cause
+        # without the history entry becoming too large.
+        error_lines = last_compile_errors.strip().splitlines()
+        error_snippet = "\n".join(error_lines[:25])
+        if len(error_lines) > 25:
+            error_snippet += f"\n... ({len(error_lines) - 25} more lines)"
+
         print(">>> Max repair attempts reached. Archiving branch for manual review.")
         run_bash("git add src/solver.rs experiment_plan.md")
         run_bash(f'git commit -m "FAILED COMPILE [{loop_iteration}]: {descriptor}"')
@@ -635,6 +644,7 @@ while True:
             f"Branch: `{branch_name}`\n"
             f"Proposal: {summary}\n"
             f"Result: FAILED COMPILE — exhausted {MAX_REPAIR_ATTEMPTS} repair attempts\n"
+            f"Compile errors (last attempt):\n```\n{error_snippet}\n```\n"
             f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
             f"Decision: DISCARDED\n\n---\n"
         )
@@ -797,6 +807,8 @@ while True:
             f'git commit -m "IMPROVEMENT [{loop_iteration}]: '
             f'{new_vehicles}v {new_distance:.2f}dist {new_time_ms:.0f}ms ({descriptor})"'
         )
+        # Push the experiment branch so experiment_plan.md is preserved on origin
+        run_bash(f"git push origin {branch_name}")
         # Apply only the files we want to main — experiment_plan.md stays on the branch
         run_bash("git checkout main")
         run_bash(f"git checkout {branch_name} -- src/solver.rs")
