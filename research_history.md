@@ -20,3 +20,24 @@ Result: 40v / 9870.11 / 2204ms / gap 15.81%
 Decision: KEPT (quality_improved=True, time_improved=False)
 
 ---
+
+## Iteration 4 — 2026-06-02T22:11:07
+Branch: `experiment/4_inter-route-2opt-improvement`
+Proposal: Improve the efficiency of `apply_inter_route_2opt()` by reducing redundant checks and optimizing loop structures.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error[E0425]: cannot find function `apply_or_opt` in this scope
+   --> src/solver.rs:223:19
+    |
+223 |         let imp = apply_or_opt(prob, &mut routes);
+    |                   ^^^^^^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `vrptw_autoresearch` (bin "vrptw_autoresearch") due to 1 previous error
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
