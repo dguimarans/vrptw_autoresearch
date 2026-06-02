@@ -41,3 +41,41 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 5 — 2026-06-02T22:24:59
+Branch: `experiment/5_inter-route-2opt-improvement-v2`
+Proposal: Refine the `apply_inter_route_2opt()` function to improve efficiency and effectiveness, focusing on reducing redundant checks and optimizing loop structures.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error[E0609]: no field `k` on type `&Problem`
+   --> src/solver.rs:219:78
+    |
+219 |             if routes[i].customers.len() + routes[j].customers.len() <= prob.k {
+    |                                                                              ^ unknown field
+    |
+help: a field with a similar name exists
+    |
+219 -             if routes[i].customers.len() + routes[j].customers.len() <= prob.k {
+219 +             if routes[i].customers.len() + routes[j].customers.len() <= prob.n {
+    |
+
+error[E0599]: the method `concat` exists for array `[&Vec<usize>; 2]`, but its trait bounds were not satisfied
+   --> src/solver.rs:223:19
+    |
+220 |                   let new_route_customers: Vec<usize> = [
+    |  _______________________________________________________-
+221 | |                     &routes[i].customers,
+222 | |                     &routes[j].customers
+223 | |                 ].concat();
+    | |                  -^^^^^^ method cannot be called on `[&Vec<usize>; 2]` due to unsatisfied trait bounds
+    | |__________________|
+    |
+    |
+... (6 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
