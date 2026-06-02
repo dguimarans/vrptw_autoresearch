@@ -931,3 +931,41 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 9 — 2026-06-02T23:13:15
+Branch: `experiment/9_iter-1780435006`
+Proposal: (no summary provided)
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error: expected one of `.`, `;`, `?`, `else`, or an operator, found `,`
+  --> src/solver.rs:22:85
+   |
+22 |         let (xi, xj) = thread_rng().gen_range(0..current_routes[ri].customers.len()), thread_rng().gen_range(0..current_routes[rj].customers.len());
+   |                                                                                     ^ expected one of `.`, `;`, `?`, `else`, or an operator
+
+error[E0432]: unresolved import `rand`
+ --> src/solver.rs:2:5
+  |
+2 | use rand::{thread_rng, Rng};
+  |     ^^^^ use of unresolved module or unlinked crate `rand`
+  |
+  = help: if you wanted to use a crate named `rand`, use `cargo add rand` to add it to your `Cargo.toml`
+
+error[E0308]: mismatched types
+   --> src/solver.rs:6:48
+    |
+  6 |     routes.iter().map(|r| route_distance(prob, r)).sum()
+    |                           --------------       ^ expected `&[usize]`, found `&Route`
+    |                           |
+    |                           arguments to this function are incorrect
+    |
+    = note: expected reference `&[usize]`
+               found reference `&Route`
+... (298 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
