@@ -1456,3 +1456,33 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 13 — 2026-06-03T00:10:19
+Branch: `experiment/13_iter-1780438340`
+Proposal: (no summary provided)
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error[E0425]: cannot find function `apply_2opt_intra` in this scope
+   --> src/solver.rs:252:5
+    |
+252 |     apply_2opt_intra(prob, &mut routes);
+    |     ^^^^^^^^^^^^^^^^ not found in this scope
+
+warning: unused variable: `depot`
+  --> src/solver.rs:10:9
+   |
+10 |     let depot = &prob.customers[0];
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_depot`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0425`.
+warning: `vrptw_autoresearch` (bin "vrptw_autoresearch") generated 1 warning
+error: could not compile `vrptw_autoresearch` (bin "vrptw_autoresearch") due to 1 previous error; 1 warning emitted
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
