@@ -969,3 +969,41 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 10 — 2026-06-02T23:29:12
+Branch: `experiment/10_iter-1780435880`
+Proposal: (no summary provided)
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error[E0308]: mismatched types
+  --> src/solver.rs:14:35
+   |
+14 |         last_route.customers.push(customer);
+   |                              ---- ^^^^^^^^ expected `usize`, found `&Customer`
+   |                              |
+   |                              arguments to this method are incorrect
+   |
+note: method defined here
+  --> /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library/alloc/src/vec/mod.rs:991:11
+
+error[E0308]: `if` and `else` have incompatible types
+  --> src/solver.rs:40:79
+   |
+40 |                     let cj1 = if j + 1 < n { &route.customers[j + 1] } else { &prob.customers[0] };
+   |                                              -----------------------          ^^^^^^^^^^^^^^^^^^ expected `&usize`, found `&Customer`
+   |                                              |
+   |                                              expected because of this
+   |
+   = note: expected reference `&usize`
+              found reference `&Customer`
+
+error[E0308]: arguments to this function are incorrect
+  --> src/solver.rs:41:33
+... (309 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
