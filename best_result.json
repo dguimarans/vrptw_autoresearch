@@ -1,7 +1,7 @@
 {
   "vehicles": 40,
   "distance": 9870.11,
-  "time_ms": 2202.1,
-  "iteration": 5,
-  "branch": "experiment/5_inter-route-2opt-move"
+  "time_ms": 2188.4,
+  "iteration": 6,
+  "branch": "experiment/6_incremental-distance-calculation"
 }
