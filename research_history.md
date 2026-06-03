@@ -281,3 +281,41 @@ Result: 42v / 10052.10 / 3140ms / gap 17.94%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 21 — 2026-06-04T00:19:04
+Branch: `experiment/21_biased-random-construction`
+Proposal: Replace deterministic regret-2 with a probabilistic approach for diverse route building.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error: expected identifier, found reserved keyword `gen`
+  --> src/solver.rs:44:41
+   |
+44 |             .find(|&(_, (_, _, p))| rng.gen::<f64>() < (remaining * p / total_prob))
+   |                                         ^^^ expected identifier, found reserved keyword
+   |
+help: escape `gen` to use it as an identifier
+   |
+44 |             .find(|&(_, (_, _, p))| rng.r#gen::<f64>() < (remaining * p / total_prob))
+   |                                         ++
+
+error[E0433]: cannot find module or crate `rand` in this scope
+  --> src/solver.rs:39:23
+   |
+39 |         let mut rng = rand::thread_rng();
+   |                       ^^^^ use of unresolved module or unlinked crate `rand`
+   |
+   = help: if you wanted to use a crate named `rand`, use `cargo add rand` to add it to your `Cargo.toml`
+
+warning: unused variable: `prob`
+  --> src/solver.rs:69:28
+   |
+69 | fn incremental_feasibility(prob: &Problem, route: &[usize], start: usize, end: usize) -> bool {
+   |                            ^^^^ help: if this is intentional, prefix it with an underscore: `_prob`
+... (36 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
