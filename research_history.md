@@ -20,3 +20,11 @@ Result: 40v / 9870.11 / 2204ms / gap 15.81%
 Decision: KEPT (quality_improved=True, time_improved=False)
 
 ---
+
+## Iteration 4 — 2026-06-03T10:35:48
+Branch: `experiment/4_delay-vehicle-reduction`
+Proposal: Delay vehicle reduction attempts until after initial route optimization to allow better packing.
+Result: 41v / 10040.14 / 3102ms / gap 17.80%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
