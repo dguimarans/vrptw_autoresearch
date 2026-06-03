@@ -44,3 +44,11 @@ Result: 40v / 9870.11 / 2188ms / gap 15.81%
 Decision: KEPT (quality_improved=False, time_improved=True)
 
 ---
+
+## Iteration 7 — 2026-06-03T13:11:15
+Branch: `experiment/7_incremental-distance-calculation`
+Proposal: Modify apply_or_opt() to compute only incremental distance changes when moving segments between routes, improving runtime without affecting solution quality.
+Result: 40v / 9870.11 / 2194ms / gap 15.81%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
