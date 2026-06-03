@@ -77,3 +77,41 @@ Result: 40v / 9870.11 / 2269ms / gap 15.81%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 11 — 2026-06-03T14:05:31
+Branch: `experiment/11_lin-kernighan-route-construction`
+Proposal: Replace regret2_construction() with Lin-Kernighan-based route construction for better initial routes.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error[E0277]: the type `[Customer]` cannot be indexed by `&usize`
+  --> src/solver.rs:14:86
+   |
+14 |         let start_idx = *unrouted.iter().max_by_key(|&c| dist(depot, &prob.customers[c])).unwrap();
+   |                                                                                      ^ slice indices are of type `usize` or ranges of `usize`
+   |
+   = help: the trait `SliceIndex<[Customer]>` is not implemented for `&usize`
+help: the following other types implement trait `SliceIndex<T>`
+  --> /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library/core/src/bstr/traits.rs:197:0
+   |
+   = note: `usize` implements `SliceIndex<ByteStr>`
+  --> /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library/core/src/slice/index.rs:214:0
+   |
+   = note: `usize` implements `SliceIndex<[T]>`
+   = note: required for `Vec<Customer>` to implement `Index<&usize>`
+help: dereference this index
+   |
+14 |         let start_idx = *unrouted.iter().max_by_key(|&c| dist(depot, &prob.customers[*c])).unwrap();
+   |                                                                                      +
+
+error[E0277]: the trait bound `f64: Ord` is not satisfied
+  --> src/solver.rs:14:42
+   |
+14 |         let start_idx = *unrouted.iter().max_by_key(|&c| dist(depot, &prob.customers[c])).unwrap();
+... (17 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
