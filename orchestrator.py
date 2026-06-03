@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 # --- CONFIGURATION ---
-PLANNER = "qwen2.5-coder:7b"
+PLANNER = "deepseek-headless"
 CODER = "qwen2.5-coder:7b"
 OLLAMA_URL = "http://localhost:11434/v1/chat/completions"
 UNLOAD_URL = "http://localhost:11434/api/generate"
