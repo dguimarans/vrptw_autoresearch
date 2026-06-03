@@ -170,3 +170,37 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 16 — 2026-06-03T20:17:03
+Branch: `experiment/16_biased-random-construction`
+Proposal: Replace deterministic regret-2 construction with a probabilistic approach to encourage diverse route building.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error: expected identifier, found reserved keyword `gen`
+  --> src/solver.rs:38:20
+   |
+38 |             if rng.gen::<f64>() < prob {
+   |                    ^^^ expected identifier, found reserved keyword
+   |
+help: escape `gen` to use it as an identifier
+   |
+38 |             if rng.r#gen::<f64>() < prob {
+   |                    ++
+
+error[E0433]: cannot find module or crate `rand` in this scope
+  --> src/solver.rs:23:23
+   |
+23 |         let mut rng = rand::thread_rng();
+   |                       ^^^^ use of unresolved module or unlinked crate `rand`
+   |
+   = help: if you wanted to use a crate named `rand`, use `cargo add rand` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `vrptw_autoresearch` (bin "vrptw_autoresearch") due to 2 previous errors
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
