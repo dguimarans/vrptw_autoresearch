@@ -14,7 +14,7 @@ import matplotlib.patches as mpatches
 
 # --- CONFIGURATION ---
 PLANNER = "deepseek-headless"
-CODER = "qwen2.5-coder:7b"
+CODER = "qwen2.5-coder-headless"   # 14B; change to "qwen2.5-coder:7b" to revert
 OLLAMA_URL = "http://localhost:11434/v1/chat/completions"
 UNLOAD_URL = "http://localhost:11434/api/generate"
 MAX_REPAIR_ATTEMPTS = 3
@@ -62,7 +62,7 @@ def force_unload(model_name):
 # LLM
 # ---------------------------------------------------------------------------
 
-def call_local_llm(model, system_prompt, user_content, nudge=None):
+def call_local_llm(model, system_prompt, user_content, nudge=None, temperature=0.2):
     """Call model with automatic retry on network/server errors.
     On retries, `nudge` is prepended to user_content to discourage repeating the same failure."""
     last_exc = None
@@ -75,7 +75,7 @@ def call_local_llm(model, system_prompt, user_content, nudge=None):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": content},
                 ],
-                "temperature": 0.2,
+                "temperature": temperature,
             }
             response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_TIMEOUT_S)
             response.raise_for_status()
@@ -244,8 +244,8 @@ def trim_history_for_planner(history_text: str) -> str:
 
 
 def commit_log_to_main(iteration, branch_name, timestamp):
-    """Commit research_log.csv and research_history.md updates to main."""
-    run_bash(f"git add {RESEARCH_LOG_CSV} {RESEARCH_HISTORY_MD}")
+    """Commit log files, graphs, and README updates to main."""
+    run_bash(f"git add {RESEARCH_LOG_CSV} {RESEARCH_HISTORY_MD} graphs/ README.md")
     run_bash(f'git commit -m "LOG [{iteration}]: update research log ({branch_name})"')
     run_bash("git push origin main")
 
@@ -400,6 +400,35 @@ def update_readme_graphs():
         f.write(new_content)
 
 
+def update_readme_best_result(vehicles, distance, time_ms):
+    if not os.path.exists("README.md"):
+        return
+    gap_pct = round((distance - BKS_DISTANCE) / BKS_DISTANCE * 100, 1)
+    with open("README.md", "r") as f:
+        content = f.read()
+    marker_start = "<!-- BEST_RESULT_START -->"
+    marker_end   = "<!-- BEST_RESULT_END -->"
+    block = (
+        f"{marker_start}\n"
+        f"### Current best result on RC1_4\\_1\n\n"
+        f"| Metric | Value |\n"
+        f"|---|---|\n"
+        f"| Vehicles | {vehicles} |\n"
+        f"| Total distance | {distance:.2f} |\n"
+        f"| Gap to BKS | ~{gap_pct:.1f} % |\n"
+        f"| Runtime | ~{time_ms / 1000:.1f} s |\n"
+        f"{marker_end}"
+    )
+    if marker_start in content and marker_end in content:
+        before = content.split(marker_start)[0]
+        after  = content.split(marker_end)[1]
+        new_content = before + block + after
+    else:
+        new_content = content + "\n\n" + block + "\n"
+    with open("README.md", "w") as f:
+        f.write(new_content)
+
+
 # ---------------------------------------------------------------------------
 # Graceful exit
 # ---------------------------------------------------------------------------
@@ -515,12 +544,14 @@ while True:
     print(f"    Baseline: {base_vehicles}v / {base_distance:.2f} / {base_time_ms:.0f}ms")
     print(f"[{PLANNER}] Devising strategy...")
 
+    current_gap_pct = round((base_distance - BKS_DISTANCE) / BKS_DISTANCE * 100, 2) if base_distance < float("inf") else float("inf")
     user_planner = (
         f"PRIOR RESEARCH HISTORY:\n{prior_history or '(none yet — this is the first iteration)'}\n\n"
         f"CURRENT src/solver.rs (the ONLY file you should propose changes to):\n{current_solver_code}\n\n"
         f"CURRENT BEST PERFORMANCE:\n"
         f"  Vehicles : {base_vehicles}\n"
         f"  Distance : {base_distance:.2f}\n"
+        f"  Gap to BKS : {current_gap_pct:.2f}% (BKS: {BKS_VEHICLES}v / {BKS_DISTANCE})\n"
         f"  Runtime  : {base_time_ms:.0f} ms"
     )
 
@@ -572,6 +603,7 @@ while True:
             f"IMPLEMENTATION PLAN:\n{plan}\n\nCURRENT src/solver.rs:\n{current_solver_code}",
             nudge="Your previous attempt failed. Return ONLY a single ```rust``` code block "
                   "containing the complete src/solver.rs — no explanations, no stubs.",
+            temperature=0.0,
         )
     except Exception as e:
         print(f"!!! Coder failed after {LLM_RETRY_ATTEMPTS} attempts: {e}")
@@ -618,6 +650,7 @@ while True:
                 CODER, SYS_REPAIR,
                 f"COMPILER ERRORS:\n{output}\n\nBROKEN src/solver.rs:\n{broken_code}",
                 nudge="Your previous attempt failed. Fix ALL errors and return ONLY a single ```rust``` block.",
+                temperature=0.0,
             )
         except Exception as e:
             print(f"    [LLM] Repair call failed: {type(e).__name__}: {e}. Counting as failed attempt.")
@@ -803,6 +836,7 @@ while True:
         append_history(history_entry)
         generate_graphs()
         update_readme_graphs()
+        update_readme_best_result(new_vehicles, new_distance, new_time_ms)
         # Commit everything (including experiment_plan.md) to the experiment branch for reference
         run_bash("git add .")
         run_bash(
@@ -842,6 +876,7 @@ while True:
         append_research_log(log_row)
         append_history(history_entry)
         generate_graphs()
+        update_readme_graphs()
         commit_log_to_main(loop_iteration, branch_name, timestamp)
 
     print(f"[Loop] Cooling down {COOLDOWN_S}s...")

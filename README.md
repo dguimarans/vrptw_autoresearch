@@ -90,6 +90,7 @@ of the infrastructure layer.
 5. **Inter-route 2-opt** (`apply_inter_route_2opt`) — swap two adjacent customer pairs
    between different routes. Added in iteration 3.
 
+<!-- BEST_RESULT_START -->
 ### Current best result on RC1_4\_1
 
 | Metric | Value |
@@ -98,6 +99,7 @@ of the infrastructure layer.
 | Total distance | 9870.11 |
 | Gap to BKS | ~15.8 % |
 | Runtime | ~2.2 s |
+<!-- BEST_RESULT_END -->
 
 ## Running manually
 
