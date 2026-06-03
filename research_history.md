@@ -235,3 +235,41 @@ Result: 43v / 10085.02 / 2956ms / gap 18.33%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 19 — 2026-06-03T22:29:00
+Branch: `experiment/19_biased-random-construction`
+Proposal: Replace deterministic regret-2 route selection with probabilistic choice based on regrets.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error: expected identifier, found reserved keyword `gen`
+  --> src/solver.rs:56:24
+   |
+56 |                 if rng.gen::<f64>() < (remaining * p / total_prob) {
+   |                        ^^^ expected identifier, found reserved keyword
+   |
+help: escape `gen` to use it as an identifier
+   |
+56 |                 if rng.r#gen::<f64>() < (remaining * p / total_prob) {
+   |                        ++
+
+error[E0571]: `break` with value from a `for` loop
+  --> src/solver.rs:57:21
+   |
+55 |             for (i, (_, _, p)) in probs.iter().enumerate() {
+   |             ---------------------------------------------- you can't `break` with a value in a `for` loop
+56 |                 if rng.gen::<f64>() < (remaining * p / total_prob) {
+57 |                     break i;
+   |                     ^^^^^^^ can only break with a value inside `loop` or breakable block
+   |
+help: use `break` on its own without a value inside this `for` loop
+   |
+57 -                     break i;
+57 +                     break;
+... (13 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
