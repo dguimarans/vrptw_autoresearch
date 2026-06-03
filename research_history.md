@@ -60,3 +60,12 @@ Result: 42v / 10052.10 / 1837ms / gap 17.94%
 Decision: DISCARDED (quality_improved=False, time_improved=True)
 
 ---
+
+## Iteration 9 — 2026-06-03T13:34:11
+Branch: `experiment/9_inter-route-2opt-move`
+Proposal: Modify apply_or_opt() to compute only incremental distance changes when moving segments between routes, improving runtime without affecting solution quality.
+Result: NO PARSEABLE OUTPUT
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
