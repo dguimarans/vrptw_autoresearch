@@ -10,3 +10,4 @@ iteration,timestamp,branch,vehicles,distance,time_ms,gap_pct,improves_quality,im
 10,2026-06-03T13:56:03,experiment/10_incremental-vehicle-reduction,40,9870.11,2269.1,15.8069,False,False,False,"Modify vehicle reduction attempts to run multiple passes after inter-route moves, improving opportunities for elimination."
 12,2026-06-03T14:27:59,experiment/12_inter-route-2-opt-integration,40,9870.11,2194.6,15.8069,False,False,False,Integrate apply_inter_route_2opt() into the main optimization loop for continuous inter-route improvements.
 13,2026-06-03T14:38:08,experiment/13_inter-route-2opt-loop,40,9870.11,2304.7,15.8069,False,False,False,Add a loop applying inter-route 2-opt followed by other improvements to fully leverage route merging opportunities.
+18,2026-06-03T22:08:29,experiment/18_inter-route-2opt-loop,43,10085.02,2956.2,18.3285,False,False,False,[Add a loop applying inter-route 2-opt followed by other improvements.]

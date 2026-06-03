@@ -227,3 +227,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 18 — 2026-06-03T22:08:29
+Branch: `experiment/18_inter-route-2opt-loop`
+Proposal: [Add a loop applying inter-route 2-opt followed by other improvements.]
+Result: 43v / 10085.02 / 2956ms / gap 18.33%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
