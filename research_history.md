@@ -52,3 +52,11 @@ Result: 40v / 9870.11 / 2194ms / gap 15.81%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 8 — 2026-06-03T13:24:33
+Branch: `experiment/8_multi-move-loop`
+Proposal: Add a loop that alternates between 2-opt and Or-opt moves to explore more route improvements.
+Result: 42v / 10052.10 / 1837ms / gap 17.94%
+Decision: DISCARDED (quality_improved=False, time_improved=True)
+
+---
