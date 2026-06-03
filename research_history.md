@@ -123,3 +123,11 @@ Result: 40v / 9870.11 / 2195ms / gap 15.81%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 13 — 2026-06-03T14:38:08
+Branch: `experiment/13_inter-route-2opt-loop`
+Proposal: Add a loop applying inter-route 2-opt followed by other improvements to fully leverage route merging opportunities.
+Result: 40v / 9870.11 / 2305ms / gap 15.81%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
