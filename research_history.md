@@ -69,3 +69,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 10 — 2026-06-03T13:56:03
+Branch: `experiment/10_incremental-vehicle-reduction`
+Proposal: Modify vehicle reduction attempts to run multiple passes after inter-route moves, improving opportunities for elimination.
+Result: 40v / 9870.11 / 2269ms / gap 15.81%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
