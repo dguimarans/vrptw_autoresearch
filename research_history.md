@@ -140,3 +140,33 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 15 — 2026-06-03T19:20:47
+Branch: `experiment/15_biased-random-construction`
+Proposal: Introduce probabilistic selection in regret-2 construction for diverse route building.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error[E0433]: cannot find module or crate `rand` in this scope
+  --> src/solver.rs:35:27
+   |
+35 |             let mut rng = rand::thread_rng();
+   |                           ^^^^ use of unresolved module or unlinked crate `rand`
+   |
+   = help: if you wanted to use a crate named `rand`, use `cargo add rand` to add it to your `Cargo.toml`
+
+error[E0599]: no method named `shuffle` found for struct `Vec<(f64, usize, usize)>` in the current scope
+  --> src/solver.rs:46:21
+   |
+46 |             options.shuffle(&mut rng);
+   |                     ^^^^^^^ method not found in `Vec<(f64, usize, usize)>`
+
+Some errors have detailed explanations: E0433, E0599.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `vrptw_autoresearch` (bin "vrptw_autoresearch") due to 2 previous errors
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
