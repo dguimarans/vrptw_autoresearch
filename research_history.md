@@ -115,3 +115,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 12 — 2026-06-03T14:27:59
+Branch: `experiment/12_inter-route-2-opt-integration`
+Proposal: Integrate apply_inter_route_2opt() into the main optimization loop for continuous inter-route improvements.
+Result: 40v / 9870.11 / 2195ms / gap 15.81%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
