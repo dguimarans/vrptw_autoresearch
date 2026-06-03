@@ -273,3 +273,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 20 — 2026-06-03T23:27:18
+Branch: `experiment/20_iterated-local-search`
+Proposal: Introduce an iterated local search with perturbation to escape local optima and improve solution quality.
+Result: 42v / 10052.10 / 3140ms / gap 17.94%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
