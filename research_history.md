@@ -463,3 +463,41 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 26 — 2026-06-04T18:27:31
+Branch: `experiment/26_biased-random-construction`
+Proposal: Replace deterministic regret-2 customer selection with probabilistic choice based on regrets to improve solution diversity.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error: expected identifier, found reserved keyword `gen`
+  --> src/solver.rs:47:20
+   |
+47 |             if rng.gen::<f64>() < cumulative_prob {
+   |                    ^^^ expected identifier, found reserved keyword
+   |
+help: escape `gen` to use it as an identifier
+   |
+47 |             if rng.r#gen::<f64>() < cumulative_prob {
+   |                    ++
+
+warning: use of deprecated function `rand::thread_rng`: Renamed to `rng`
+  --> src/solver.rs:12:25
+   |
+12 |     let mut rng = rand::thread_rng();
+   |                         ^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated method `rand::Rng::r#gen`: Renamed to `random` to avoid conflict with the new `gen` keyword in Rust 2024.
+  --> src/solver.rs:47:20
+   |
+47 |             if rng.gen::<f64>() < cumulative_prob {
+   |                    ^^^
+... (3 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
