@@ -353,3 +353,41 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 23 — 2026-06-04T02:15:17
+Branch: `experiment/23_biased-random-construction`
+Proposal: Replace deterministic regret-2 route selection with probabilistic choice based on regrets to improve solution diversity.
+Result: FAILED COMPILE — exhausted 3 repair attempts
+Compile errors (last attempt):
+```
+Checking vrptw_autoresearch v0.1.0 (/home/dguimarans/workspace/vrptw_autoresearch)
+error: expected identifier, found reserved keyword `gen`
+  --> src/solver.rs:56:20
+   |
+56 |             if rng.gen::<f64>() < remaining * p {
+   |                    ^^^ expected identifier, found reserved keyword
+   |
+help: escape `gen` to use it as an identifier
+   |
+56 |             if rng.r#gen::<f64>() < remaining * p {
+   |                    ++
+
+error[E0432]: unresolved import `rand`
+  --> src/solver.rs:10:9
+   |
+10 |     use rand::Rng;
+   |         ^^^^ use of unresolved module or unlinked crate `rand`
+   |
+   = help: if you wanted to use a crate named `rand`, use `cargo add rand` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `rand` in this scope
+  --> src/solver.rs:11:19
+   |
+11 |     let mut rng = rand::thread_rng();
+   |                   ^^^^ use of unresolved module or unlinked crate `rand`
+... (6 more lines)
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
