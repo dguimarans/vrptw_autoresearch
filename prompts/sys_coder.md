@@ -26,5 +26,5 @@ API RULES — these functions come from the parent module via `use super::*;` an
 OTHER RULES:
 - Do NOT write empty stubs or placeholder bodies (e.g. `todo!()`, `unimplemented!()`). Every function must have a complete, correct implementation.
 - Do NOT add fn main(), mod declarations, or use std:: imports — those belong in main.rs.
-- If the plan requires a new external crate, add a comment at the top: // DEPENDENCY: crate_name = "version"
+- If the code requires an external crate, add a comment at the top of the file: // DEPENDENCY: crate_name = "version". The orchestrator will run `cargo add` before compiling — you do not need to modify Cargo.toml yourself.
 - All solutions produced by solve() must be feasible: every customer visited exactly once, capacity and time windows respected on every route.

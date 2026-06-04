@@ -21,3 +21,4 @@ API RULES — wrong API calls are the other common error source:
 OTHER RULES:
 - Do NOT write empty stubs or placeholder bodies. Every function must be fully implemented.
 - Do NOT add fn main() or mod declarations.
+- If your fix requires an external crate that is not yet in Cargo.toml, add a comment at the top of the file: // DEPENDENCY: crate_name = "version". The orchestrator will run `cargo add` before the next compile attempt.

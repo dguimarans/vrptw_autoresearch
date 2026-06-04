@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 # --- CONFIGURATION ---
-PLANNER = "deepseek-headless"
-CODER = "qwen2.5-coder-headless"   # 14B; change to "qwen2.5-coder:7b" to revert
+PLANNER = "deepseek-r1-32b-headless"
+CODER = "qwen2.5-coder-32b-headless"
 OLLAMA_URL = "http://localhost:11434/v1/chat/completions"
 UNLOAD_URL = "http://localhost:11434/api/generate"
 MAX_REPAIR_ATTEMPTS = 3
@@ -96,6 +96,38 @@ def extract_rust_code(raw_text):
     if "```rust" in raw_text:
         return raw_text.split("```rust")[1].split("```")[0].strip()
     return raw_text.strip()
+
+
+def apply_dependencies(code: str):
+    """Parse '// DEPENDENCY: crate = \"version\"' comments and cargo-add any missing crates."""
+    with open("Cargo.toml", "r") as f:
+        cargo = f.read()
+    for line in code.splitlines():
+        m = re.match(r"//\s*DEPENDENCY:\s*(\S+)\s*=\s*\"([^\"]+)\"", line)
+        if not m:
+            continue
+        crate, version = m.group(1), m.group(2)
+        if crate in cargo:
+            continue
+        print(f"    [deps] Adding {crate} = \"{version}\" to Cargo.toml...")
+        out, rc = run_bash(f"cargo add {crate}@{version} 2>&1")
+        if rc != 0:
+            print(f"    [deps] WARNING: cargo add failed for {crate}: {out[:200]}")
+
+
+def apply_dependencies_from_errors(errors: str):
+    """Fallback: parse cargo check output for unresolved crates and cargo-add them.
+    Fires when the model forgot to write a // DEPENDENCY comment."""
+    with open("Cargo.toml", "r") as f:
+        cargo = f.read()
+    for m in re.finditer(r"use `cargo add (\S+)` to add it", errors):
+        crate = m.group(1)
+        if crate in cargo:
+            continue
+        print(f"    [deps] Fallback: detected missing crate '{crate}' from compiler hint — adding...")
+        out, rc = run_bash(f"cargo add {crate} 2>&1")
+        if rc != 0:
+            print(f"    [deps] WARNING: cargo add {crate} failed: {out[:200]}")
 
 
 # ---------------------------------------------------------------------------
@@ -627,6 +659,7 @@ while True:
         continue
 
     clean_code = extract_rust_code(new_code_raw)
+    apply_dependencies(clean_code)
     with open("src/solver.rs", "w") as f:
         f.write(clean_code)
 
@@ -641,6 +674,7 @@ while True:
             break
 
         last_compile_errors = output
+        apply_dependencies_from_errors(output)
         print(f"    Compile failed. Sending errors to {CODER}...")
         with open("src/solver.rs", "r") as f:
             broken_code = f.read()
@@ -656,6 +690,7 @@ while True:
             print(f"    [LLM] Repair call failed: {type(e).__name__}: {e}. Counting as failed attempt.")
             continue
         clean_code = extract_rust_code(repair_raw)
+        apply_dependencies(clean_code)
         with open("src/solver.rs", "w") as f:
             f.write(clean_code)
 
