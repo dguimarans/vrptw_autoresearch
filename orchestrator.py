@@ -12,8 +12,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # --- CONFIGURATION ---
-PLANNER         = "deepseek-r1-7b-headless"
-CODER           = "qwen2.5-coder-7b-headless"    # off-loaded between phases; 7B is fast enough for Python
+PLANNER         = "deepseek-headless"
+CODER           = "qwen2.5-coder-headless"
 OLLAMA_URL      = "http://localhost:11434/v1/chat/completions"
 UNLOAD_URL      = "http://localhost:11434/api/generate"
 MAX_REPAIR_ATTEMPTS  = 3
