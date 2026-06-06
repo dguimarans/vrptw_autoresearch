@@ -510,3 +510,12 @@ Note: Python runtime is ~16x Rust. This establishes the Python-language baseline
 Decision: KEPT (python baseline)
 
 ---
+
+## Iteration 28 — 2026-06-06T17:03:54
+Branch: (none — planner JSON parse failed)
+Proposal: (none)
+Result: PLANNER JSON PARSE FAILURE
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
