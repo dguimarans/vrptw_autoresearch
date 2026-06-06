@@ -528,3 +528,23 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 30 — 2026-06-06T18:04:37
+Branch: `experiment/30_iterated-local-search-with-perturbation`
+Proposal: Add an iterated local search loop around the existing local search to periodically perturb the solution and escape local optima.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 280, in solve
+    best_cost = route_distance(prob, sum(routes, key=lambda r: r.customers))
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: 'key' is an invalid keyword argument for sum()
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
