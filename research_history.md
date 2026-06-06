@@ -511,43 +511,7 @@ Decision: KEPT (python baseline)
 
 ---
 
-## Iteration 46 — 2026-06-06T19:44:18
-Branch: (none — planner failed before branch creation)
-Proposal: (none)
-Result: PLANNER LLM FAILURE — ConnectionError
-Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
-Decision: DISCARDED
-
----
-
-## Iteration 47 — 2026-06-06T19:44:50
-Branch: (none — planner failed before branch creation)
-Proposal: (none)
-Result: PLANNER LLM FAILURE — ConnectionError
-Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
-Decision: DISCARDED
-
----
-
-## Iteration 48 — 2026-06-06T19:45:22
-Branch: (none — planner failed before branch creation)
-Proposal: (none)
-Result: PLANNER LLM FAILURE — ConnectionError
-Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
-Decision: DISCARDED
-
----
-
-## Iteration 49 — 2026-06-06T19:45:54
-Branch: (none — planner failed before branch creation)
-Proposal: (none)
-Result: PLANNER LLM FAILURE — ConnectionError
-Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
-Decision: DISCARDED
-
----
-
-## Iteration 50 — 2026-06-06T19:46:25
+## Iteration 51 — 2026-06-06T19:46:57
 Branch: (none — planner failed before branch creation)
 Proposal: (none)
 Result: PLANNER LLM FAILURE — ConnectionError
