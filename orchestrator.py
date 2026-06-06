@@ -81,7 +81,7 @@ def call_local_llm(model, system_prompt, user_content, nudge=None, temperature=0
                 "temperature": temperature,
             }
             if json_mode:
-                payload["response_format"] = {"type": "json_object"}
+                payload["response_format"] = {"type": "json_object"}  # hint only — not reliable on 7B
             response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_TIMEOUT_S)
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"]
@@ -160,19 +160,43 @@ def apply_python_dependencies(code: str):
 
 def parse_plan_json(raw: str) -> dict:
     """Extract and parse the JSON plan from planner output.
-    Strips DeepSeek-R1 <think>...</think> blocks, then finds the JSON object.
-    Applies trailing-comma repair as a fallback for the most common model mistake."""
+    Strips DeepSeek-R1 <think>...</think> blocks, locates the JSON object,
+    and applies two repair passes before giving up:
+      1. Close any unclosed braces/brackets (truncated response).
+      2. Strip trailing commas (most common small-model mistake).
+    Raises ValueError if parsing still fails or required fields are absent."""
     text = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+
     m = re.search(r"\{.*\}", text, re.DOTALL)
-    if not m:
-        raise ValueError(f"No JSON object found in planner output:\n{raw[:400]}")
-    candidate = m.group(0)
-    try:
-        return json.loads(candidate)
-    except json.JSONDecodeError:
-        # Strip trailing commas before } or ] — most common small-model mistake
-        repaired = re.sub(r",\s*([}\]])", r"\1", candidate)
-        return json.loads(repaired)
+    if m:
+        candidate = m.group(0)
+    else:
+        # No closing brace — response was truncated. Find the opening brace
+        # and close any unclosed structure.
+        start = text.find("{")
+        if start == -1:
+            raise ValueError(f"No JSON object found in planner output:\n{raw[:400]}")
+        candidate = text[start:].rstrip()
+        open_braces   = candidate.count("{") - candidate.count("}")
+        open_brackets = candidate.count("[") - candidate.count("]")
+        candidate += "]" * max(0, open_brackets) + "}" * max(0, open_braces)
+
+    for attempt in (candidate, re.sub(r",\s*([}\]])", r"\1", candidate)):
+        try:
+            plan = json.loads(attempt)
+            break
+        except json.JSONDecodeError:
+            pass
+    else:
+        raise ValueError(f"JSON repair failed. Candidate:\n{candidate[:400]}")
+
+    required = {"descriptor", "summary", "implementation"}
+    missing = required - set(plan.keys())
+    if missing:
+        raise ValueError(
+            f"Plan JSON missing required fields: {missing}. Got keys: {list(plan.keys())}"
+        )
+    return plan
 
 
 def sanitise_descriptor(descriptor: str) -> str:
@@ -636,7 +660,6 @@ while True:
             PLANNER, SYS_PLANNER, user_planner,
             nudge="Your previous attempt failed or was interrupted. Be concise — "
                   "return a single valid JSON object only.",
-            json_mode=True,
         )
     except Exception as e:
         print(f"!!! Planner failed after {LLM_RETRY_ATTEMPTS} attempts: {e}")
