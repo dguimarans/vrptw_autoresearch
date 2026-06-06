@@ -636,3 +636,12 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 36 — 2026-06-06T19:39:09
+Branch: (none — planner failed before branch creation)
+Proposal: (none)
+Result: PLANNER LLM FAILURE — ConnectionError
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
