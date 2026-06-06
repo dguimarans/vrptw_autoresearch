@@ -510,3 +510,11 @@ Note: Python runtime is ~16x Rust. This establishes the Python-language baseline
 Decision: KEPT (python baseline)
 
 ---
+
+## Iteration 28 — 2026-06-06T19:58:13
+Branch: `experiment/28_ils-perturbation`
+Proposal: Add an iterated local search loop around the existing local search to escape local optima by randomly relocating a small number of customers between routes.
+Result: 40v / 9870.11 / 43016ms / gap 15.81%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---

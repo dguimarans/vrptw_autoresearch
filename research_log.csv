@@ -13,3 +13,4 @@ iteration,timestamp,branch,vehicles,distance,time_ms,gap_pct,improves_quality,im
 18,2026-06-03T22:08:29,experiment/18_inter-route-2opt-loop,43,10085.02,2956.2,18.3285,False,False,False,rust,[Add a loop applying inter-route 2-opt followed by other improvements.]
 20,2026-06-03T23:27:18,experiment/20_iterated-local-search,42,10052.1,3139.7,17.9422,False,False,False,rust,Introduce an iterated local search with perturbation to escape local optima and improve solution quality.
 27,2026-06-06T00:00:00,main,40,9870.11,31836.1,15.8069,False,False,True,python,Python baseline: direct port of Rust solver (Regret-2 + vehicle reduction + 2-opt + Or-opt + inter-route-2opt)
+28,2026-06-06T19:58:13,experiment/28_ils-perturbation,40,9870.11,43015.6,15.8069,False,False,False,python,Add an iterated local search loop around the existing local search to escape local optima by randomly relocating a small number of customers between routes.
