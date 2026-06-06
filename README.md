@@ -25,13 +25,18 @@ This makes them a robust all-around benchmark compared to purely random (R) or c
 
 ```
 orchestrator.py
-  ├── Planner LLM     (planner)     — reads research history, proposes one improvement
-  ├── Qwen2.5-Coder:7b (implementer) — writes Rust code, self-repairs up to 10 times
+  ├── DeepSeek-R1:7b  (planner)     — reads research history, proposes one improvement (JSON)
+  ├── Qwen2.5-Coder:7b (implementer) — writes Python code, self-repairs up to 3 times
   ├── validate.py      (validator)   — Python feasibility check before accept/reject
-  └── Rust solver      (evaluator)  — cargo build --release, 300s timeout
+  └── Python solver    (evaluator)  — vrptw.py + solver.py, 300s timeout
 ```
 
-Both models run locally via **Ollama** and are evicted from VRAM/RAM between phases to conserve memory.
+Both models run locally via **Ollama** and are evicted from VRAM/RAM between phases.
+The planner outputs structured JSON; the orchestrator parses it without text heuristics.
+
+> **Language history:** iterations 1–26 used a Rust solver (`src/solver.rs`). From iteration 27
+> onward the solver is Python (`solver.py`). Runtime comparisons are only meaningful within
+> the same language — the research log includes a `language` column for filtering.
 
 ### Loop logic
 
@@ -39,18 +44,18 @@ Both models run locally via **Ollama** and are evicted from VRAM/RAM between pha
 for each iteration (max 100, configurable):
   1. Checkout main; read best_result.json as baseline
   2. Create experiment/<N>_<descriptor> branch
-  3. Planner reads research_history.md + src/solver.rs → writes experiment_plan.md
-  4. Qwen reads experiment_plan.md + src/solver.rs → rewrites src/solver.rs
-     └── repair loop: cargo check → fix → repeat (max 10 attempts)
-  5. cargo build --release
-  6. Run solver on RC1_4_1 (hard timeout 300s); solver writes solution.txt
-  7. Feasibility check: python3 validate.py → reports constraint violations if any
-  8. Accept / reject:
-     ├── Infeasible           → archive branch, log violations, do not merge
-     ├── Quality improved (lex.) → keep (runtime allowed to worsen)
-     └── Neither improved    → archive branch, do not merge
-  9. If kept: update best_result.json, regenerate graphs, merge to main
-  10. Sleep 10s (cooling)
+  3. Planner reads research_history.md + solver.py → emits JSON plan → experiment_plan.md
+  4. Qwen reads experiment_plan.md + solver.py → rewrites solver.py
+     └── repair loop: run solver → on error, fix → repeat (max 3 attempts)
+  5. Run solver on RC1_4_1 (hard timeout 300s); solver writes solution.txt
+  6. Feasibility check: python3 validate.py → reports constraint violations if any
+  7. Accept / reject:
+     ├── Infeasible              → archive branch, log violations, do not merge
+     ├── Quality improved (lex.) → keep
+     ├── Faster, same quality    → keep
+     └── Neither improved        → archive branch, do not merge
+  8. If kept: update best_result.json, regenerate graphs, merge to main
+  9. Sleep 10s (cooling)
 ```
 
 ### Accept / reject rule
@@ -58,21 +63,21 @@ for each iteration (max 100, configurable):
 Quality is lexicographic: fewer vehicles first, then shorter distance. A solution is only kept
 if it strictly improves quality. Runtime is tracked for information but does not drive accept/reject.
 
-## Rust solver structure
+## Python solver structure
 
-The solver is split into two files:
+The solver is split into two files (mirroring the previous Rust split):
 
-- **`src/main.rs`** — infrastructure only (read-only, managed by the repo). Defines all types
-  (`Problem`, `Customer`, `Route`), utility functions (`dist`, `route_distance`, `route_feasible`,
-  `best_insertion_in_route`), instance parsing, solution output, and the `main()` entry point.
+- **`vrptw.py`** — infrastructure only (read-only, managed by the repo). Defines all data
+  structures (`Problem`, `Customer`, `Route`), utility functions (`dist`, `route_distance`,
+  `route_feasible`, `best_insertion_in_route`), instance parsing, solution output, and the
+  `__main__` entry point.
 
-- **`src/solver.rs`** — all heuristics (AI-managed). Begins with `use super::*;` to access
-  everything from main.rs. Exposes a single entry point: `pub fn solve(prob: &Problem) -> Vec<Route>`.
+- **`solver.py`** — all heuristics (AI-managed). Begins with `from vrptw import *`.
+  Exposes a single entry point: `def solve(prob: Problem) -> list`.
 
-The AI only edits `src/solver.rs`. This bounds the editing scope and prevents accidental breakage
-of the infrastructure layer.
+The AI only edits `solver.py`. Run the solver via `python3 vrptw.py <instance>`.
 
-### Heuristics in `src/solver.rs`
+### Heuristics in `solver.py`
 
 1. **Regret-2 construction** — for each unrouted customer, compute the cost difference
    between its best and second-best feasible insertion. Insert the customer with the
@@ -104,13 +109,10 @@ of the infrastructure layer.
 ## Running manually
 
 ```bash
-# Build
-cargo build --release
-
 # Solve RC1_4_1
-./target/release/vrptw_autoresearch instances/homberger_400_customer_instances/RC1_4_1.TXT
+python3 vrptw.py instances/homberger_400_customer_instances/RC1_4_1.TXT
 
-# The binary writes solution.txt with full route detail and prints:
+# vrptw.py writes solution.txt and prints:
 # RESULT_VEHICLES: <n>
 # RESULT_DISTANCE: <d>
 # RESULT_TIME_MS: <t>
@@ -127,7 +129,7 @@ pip install requests matplotlib
 
 # Configure in orchestrator.py:
 #   MAX_ITERATIONS = 100   (0 = unlimited, Ctrl-C to stop)
-#   SOLVER_TIMEOUT_S = 300
+#   SOLVER_TIMEOUT_S = 600
 
 python3 -u orchestrator.py 2>&1 | tee loop.log
 ```
@@ -144,8 +146,8 @@ The loop is resumable: `get_iteration_count()` scans both `research_log.csv` and
 | `research_history.md` | Append-only log of all plans and outcomes (read by the planner each iteration) |
 | `experiment_plan.md` | Per-iteration plan written by the planner, read by Qwen (overwritten each iteration) |
 | `solution.txt` | Full route detail from the most recent solver run |
-| `graphs/distance_vs_iteration.png` | Solution quality evolution |
-| `graphs/runtime_vs_iteration.png` | Solver runtime evolution |
+| `graphs/distance_vs_iteration.png` | Solution quality evolution (rust ● / python ■ markers) |
+| `graphs/runtime_vs_iteration.png` | Solver runtime evolution (compare within language only) |
 | `graphs/quality_vs_runtime.png` | Quality vs runtime scatter (Pareto view) |
 
 <!-- GRAPHS_START -->
@@ -169,13 +171,15 @@ Travel time equals Euclidean distance (no separate speed parameter).
 
 ```
 .
+├── vrptw.py                             # Infrastructure: types, parsing, I/O (read-only)
+├── solver.py                            # Heuristics: all AI-editable code
 ├── src/
-│   ├── main.rs                          # Infrastructure: types, parsing, I/O (read-only)
-│   └── solver.rs                        # Heuristics: all AI-editable code
+│   ├── main.rs                          # Legacy Rust infrastructure (iterations 1–26)
+│   └── solver.rs                        # Legacy Rust heuristics (iterations 1–26)
 ├── orchestrator.py                      # Python automation loop
 ├── validate.py                          # Python feasibility validator
 ├── prompts/
-│   ├── sys_planner.md                   # System prompt for the planning LLM
+│   ├── sys_planner.md                   # System prompt for DeepSeek-R1 (planner, JSON output)
 │   ├── sys_coder.md                     # System prompt for Qwen (implementer)
 │   └── sys_repair.md                    # System prompt for Qwen repair loop
 ├── instances/
@@ -183,7 +187,7 @@ Travel time equals Euclidean distance (no separate speed parameter).
 │       └── RC1_4_1.TXT                  # Benchmark instance
 ├── graphs/                              # Auto-generated PNG graphs
 ├── best_result.json                     # Current best solution (auto-updated)
-├── research_log.csv                     # Iteration log (auto-updated)
+├── research_log.csv                     # Iteration log with language column (auto-updated)
 ├── research_history.md                  # Research notes (append-only)
 ├── experiment_plan.md                   # Current iteration plan
 └── solution.txt                         # Most recent solver output

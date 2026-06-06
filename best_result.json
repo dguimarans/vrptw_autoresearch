@@ -1,7 +1,8 @@
 {
   "vehicles": 40,
   "distance": 9870.11,
-  "time_ms": 2188.4,
-  "iteration": 6,
-  "branch": "experiment/6_incremental-distance-calculation"
+  "time_ms": 31836.1,
+  "iteration": 27,
+  "branch": "main",
+  "language": "python"
 }

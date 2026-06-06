@@ -1,5 +1,7 @@
 # Artifacts
 /target
+__pycache__/
+*.pyc
 
 # Config
 venv/

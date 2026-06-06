@@ -10,30 +10,34 @@ import requests
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
 # --- CONFIGURATION ---
-PLANNER = "deepseek-r1-32b-headless"
-CODER = "qwen2.5-coder-32b-headless"
-OLLAMA_URL = "http://localhost:11434/v1/chat/completions"
-UNLOAD_URL = "http://localhost:11434/api/generate"
-MAX_REPAIR_ATTEMPTS = 3
-LLM_RETRY_ATTEMPTS = 3        # retries on LLM network/server error (not on bad output)
-MAX_ITERATIONS = 10           # set to 0 for unlimited (Ctrl-C to stop)
-MAX_HISTORY_FAILURES = 3      # max recent failure entries shown to planner (signal entries always kept)
-SOLVER_TIMEOUT_S = 300        # hard cap on Rust binary execution
-LLM_TIMEOUT_S = 7200          # 2h hard cap — covers DeepSeek-R1 worst-case CoT (~15k tokens at 5 tok/s) with 4x margin
-COOLDOWN_S = 10               # sleep between iterations
-INSTANCE_PATH = "instances/homberger_400_customer_instances/RC1_4_1.TXT"
-BKS_DISTANCE = 8522.90        # best known solution distance (CVRPLib)
-BKS_VEHICLES = 36             # SINTEF reference vehicle count (8571.32 solution)
-RESEARCH_LOG_CSV = "research_log.csv"
-BEST_RESULT_JSON = "best_result.json"
+PLANNER         = "deepseek-r1-7b-headless"
+CODER           = "qwen2.5-coder-7b-headless"    # off-loaded between phases; 7B is fast enough for Python
+OLLAMA_URL      = "http://localhost:11434/v1/chat/completions"
+UNLOAD_URL      = "http://localhost:11434/api/generate"
+MAX_REPAIR_ATTEMPTS  = 3
+LLM_RETRY_ATTEMPTS   = 3
+MAX_ITERATIONS       = 10
+MAX_HISTORY_FAILURES = 3
+SOLVER_TIMEOUT_S     = 600
+LLM_TIMEOUT_S        = 7200
+COOLDOWN_S           = 10
+SOLVER_LANGUAGE      = "python"
+SOLVER_SCRIPT        = "vrptw.py"    # entry point (read-only infrastructure)
+SOLVER_FILE          = "solver.py"   # AI-managed heuristics
+VENV_DIR             = "venv"
+PYTHON               = None   # resolved by ensure_venv() at startup; do not set manually
+INSTANCE_PATH   = "instances/homberger_400_customer_instances/RC1_4_1.TXT"
+BKS_DISTANCE    = 8522.90
+BKS_VEHICLES    = 36
+RESEARCH_LOG_CSV    = "research_log.csv"
+BEST_RESULT_JSON    = "best_result.json"
 RESEARCH_HISTORY_MD = "research_history.md"
-EXPERIMENT_PLAN_MD = "experiment_plan.md"
-SOLUTION_FILE = "solution.txt"
-GRAPHS_DIR = "graphs"
-PROMPTS_DIR = "prompts"
+EXPERIMENT_PLAN_JSON = "experiment_plan.json"
+SOLUTION_FILE       = "solution.txt"
+GRAPHS_DIR          = "graphs"
+PROMPTS_DIR         = "prompts"
 
 
 # ---------------------------------------------------------------------------
@@ -63,8 +67,6 @@ def force_unload(model_name):
 # ---------------------------------------------------------------------------
 
 def call_local_llm(model, system_prompt, user_content, nudge=None, temperature=0.2):
-    """Call model with automatic retry on network/server errors.
-    On retries, `nudge` is prepended to user_content to discourage repeating the same failure."""
     last_exc = None
     for attempt in range(1, LLM_RETRY_ATTEMPTS + 1):
         try:
@@ -73,7 +75,7 @@ def call_local_llm(model, system_prompt, user_content, nudge=None, temperature=0
                 "model": model,
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": content},
+                    {"role": "user",   "content": content},
                 ],
                 "temperature": temperature,
             }
@@ -89,75 +91,86 @@ def call_local_llm(model, system_prompt, user_content, nudge=None, temperature=0
 
 
 # ---------------------------------------------------------------------------
-# Code extraction
+# Python code extraction
 # ---------------------------------------------------------------------------
 
-def extract_rust_code(raw_text):
-    if "```rust" in raw_text:
-        return raw_text.split("```rust")[1].split("```")[0].strip()
+def extract_python_code(raw_text: str) -> str:
+    if "```python" in raw_text:
+        return raw_text.split("```python")[1].split("```")[0].strip()
+    if "```" in raw_text:
+        parts = raw_text.split("```")
+        if len(parts) >= 3:
+            return parts[1].strip()
     return raw_text.strip()
 
 
-def apply_dependencies(code: str):
-    """Parse '// DEPENDENCY: crate = \"version\"' comments and cargo-add any missing crates."""
-    with open("Cargo.toml", "r") as f:
-        cargo = f.read()
+# ---------------------------------------------------------------------------
+# Python dependency management
+# ---------------------------------------------------------------------------
+
+def ensure_venv():
+    """Resolve the Python interpreter to use. Prefers a venv; falls back to system python3."""
+    global PYTHON
+    if PYTHON is not None:
+        return
+    venv_python = os.path.join(VENV_DIR, "bin", "python")
+    if os.path.exists(venv_python):
+        PYTHON = venv_python
+        return
+    # Try to create the venv
+    print(f"    [venv] Creating virtual environment at {VENV_DIR}...")
+    out, rc = run_bash(f"python3 -m venv {VENV_DIR} 2>&1")
+    if rc == 0:
+        PYTHON = venv_python
+    else:
+        print(f"    [venv] WARNING: venv creation failed ({out.strip()[:120]})")
+        print(f"    [venv] Falling back to system python3. Run: sudo apt install python3-venv")
+        PYTHON = "python3"
+
+
+def apply_python_dependencies(code: str):
+    """Parse '# DEPENDENCY: package_name' comments and pip-install."""
+    ensure_venv()
+    pip_cmd = (
+        os.path.join(VENV_DIR, "bin", "pip")
+        if os.path.exists(os.path.join(VENV_DIR, "bin", "pip"))
+        else "pip3 --user"
+    )
+    installed_out, _ = run_bash(f"{pip_cmd} list --format=columns 2>/dev/null")
+    installed_lower = installed_out.lower()
     for line in code.splitlines():
-        m = re.match(r"//\s*DEPENDENCY:\s*(\S+)\s*=\s*\"([^\"]+)\"", line)
+        m = re.match(r"#\s*DEPENDENCY:\s*(\S+)", line)
         if not m:
             continue
-        crate, version = m.group(1), m.group(2)
-        if crate in cargo:
+        pkg = m.group(1)
+        if pkg.lower().replace("-", "_") in installed_lower or pkg.lower() in installed_lower:
             continue
-        print(f"    [deps] Adding {crate} = \"{version}\" to Cargo.toml...")
-        out, rc = run_bash(f"cargo add {crate}@{version} 2>&1")
+        print(f"    [deps] Installing {pkg}...")
+        out, rc = run_bash(f"{pip_cmd} install {pkg} 2>&1")
         if rc != 0:
-            print(f"    [deps] WARNING: cargo add failed for {crate}: {out[:200]}")
-
-
-def apply_dependencies_from_errors(errors: str):
-    """Fallback: parse cargo check output for unresolved crates and cargo-add them.
-    Fires when the model forgot to write a // DEPENDENCY comment."""
-    with open("Cargo.toml", "r") as f:
-        cargo = f.read()
-    for m in re.finditer(r"use `cargo add (\S+)` to add it", errors):
-        crate = m.group(1)
-        if crate in cargo:
-            continue
-        print(f"    [deps] Fallback: detected missing crate '{crate}' from compiler hint — adding...")
-        out, rc = run_bash(f"cargo add {crate} 2>&1")
-        if rc != 0:
-            print(f"    [deps] WARNING: cargo add {crate} failed: {out[:200]}")
+            print(f"    [deps] WARNING: pip install {pkg} failed: {out[:200]}")
 
 
 # ---------------------------------------------------------------------------
-# Planner output parsing
+# Planner JSON parsing
 # ---------------------------------------------------------------------------
 
-def parse_plan_header(plan: str) -> tuple[str, str]:
-    """Extract DESCRIPTOR and SUMMARY from the first two lines of the plan.
-    Returns (descriptor, summary) with safe fallbacks."""
-    descriptor = ""
-    summary = ""
-    for line in plan.splitlines():
-        line = line.strip()
-        if line.startswith("DESCRIPTOR:"):
-            descriptor = line.split(":", 1)[1].strip()
-        elif line.startswith("SUMMARY:"):
-            summary = line.split(":", 1)[1].strip()
-        if descriptor and summary:
-            break
+def parse_plan_json(raw: str) -> dict:
+    """Extract and parse the JSON plan from planner output.
+    Strips DeepSeek-R1 <think>...</think> blocks, then finds the JSON object."""
+    # Remove think blocks
+    text = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+    # Find outermost JSON object
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if not m:
+        raise ValueError(f"No JSON object found in planner output:\n{raw[:400]}")
+    return json.loads(m.group(0))
 
-    # Sanitise descriptor for use in a branch name
+
+def sanitise_descriptor(descriptor: str) -> str:
     descriptor = re.sub(r"[^a-zA-Z0-9_\-]", "-", descriptor).strip("-").lower()
-    descriptor = re.sub(r"-{2,}", "-", descriptor)  # collapse consecutive hyphens
-    if not descriptor:
-        descriptor = f"iter-{int(time.time())}"
-
-    if not summary:
-        summary = "(no summary provided)"
-
-    return descriptor, summary
+    descriptor = re.sub(r"-{2,}", "-", descriptor)
+    return descriptor or f"iter-{int(time.time())}"
 
 
 # ---------------------------------------------------------------------------
@@ -173,11 +186,12 @@ def load_best_result():
 
 def save_best_result(vehicles, distance, time_ms, iteration, branch):
     data = {
-        "vehicles": vehicles,
-        "distance": distance,
-        "time_ms": time_ms,
+        "vehicles":  vehicles,
+        "distance":  distance,
+        "time_ms":   time_ms,
         "iteration": iteration,
-        "branch": branch,
+        "branch":    branch,
+        "language":  SOLVER_LANGUAGE,
     }
     with open(BEST_RESULT_JSON, "w") as f:
         json.dump(data, f, indent=2)
@@ -196,7 +210,6 @@ def parse_solver_output(raw_output):
 
 
 def is_better_solution(new_v, new_d, best_v, best_d):
-    """Lexicographic: fewer vehicles first, then shorter distance."""
     if new_v < best_v:
         return True
     if new_v == best_v and new_d < best_d:
@@ -213,9 +226,6 @@ def solution_worsened(new_v, new_d, best_v, best_d):
 
 
 def get_iteration_count():
-    """Return the highest iteration number seen across the log CSV and history file.
-    Using max-value (not row-count) ensures a correct resume point even when
-    compile-fail / timeout iterations are recorded in history but not in the CSV."""
     max_iter = 0
     if os.path.exists(RESEARCH_LOG_CSV):
         with open(RESEARCH_LOG_CSV, "r") as f:
@@ -234,16 +244,36 @@ def get_iteration_count():
     return max_iter
 
 
+LOG_FIELDNAMES = [
+    "iteration", "timestamp", "branch",
+    "vehicles", "distance", "time_ms",
+    "gap_pct", "improves_quality", "improves_time", "kept",
+    "language", "summary",
+]
+
+
+def migrate_research_log():
+    """Add 'language' column to existing research_log.csv if missing."""
+    if not os.path.exists(RESEARCH_LOG_CSV):
+        return
+    with open(RESEARCH_LOG_CSV, "r") as f:
+        reader = csv.DictReader(f)
+        if "language" in (reader.fieldnames or []):
+            return
+        rows = list(reader)
+    with open(RESEARCH_LOG_CSV, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=LOG_FIELDNAMES, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            row.setdefault("language", "rust")
+            writer.writerow(row)
+    print("[Migration] Added 'language' column to research_log.csv")
+
+
 def append_research_log(row: dict):
     file_exists = os.path.exists(RESEARCH_LOG_CSV)
-    fieldnames = [
-        "iteration", "timestamp", "branch",
-        "vehicles", "distance", "time_ms",
-        "gap_pct", "improves_quality", "improves_time", "kept",
-        "summary",
-    ]
     with open(RESEARCH_LOG_CSV, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=LOG_FIELDNAMES, extrasaction="ignore")
         if not file_exists:
             writer.writeheader()
         writer.writerow(row)
@@ -255,15 +285,8 @@ def append_history(text: str):
 
 
 def trim_history_for_planner(history_text: str) -> str:
-    """Keep all signal entries (finite results) + last MAX_HISTORY_FAILURES failure entries.
-
-    Signal entries contain real data (finite vehicles/distance) and are always kept regardless
-    of age — they prevent the planner cycling back to known-bad or known-good territory.
-    Failure entries (Inf quality values) carry little signal beyond "this recently failed";
-    we cap them so a long compile-fail chain doesn't drown the planner's context.
-    """
     blocks = [b.strip() for b in history_text.split("\n---\n") if b.strip()]
-    signal  = [b for b in blocks if "Vehicles: Inf" not in b and "Distance: Inf" not in b]
+    signal   = [b for b in blocks if "Vehicles: Inf" not in b and "Distance: Inf" not in b]
     failures = [b for b in blocks if "Vehicles: Inf" in b or "Distance: Inf" in b]
     kept = signal + failures[-MAX_HISTORY_FAILURES:]
 
@@ -276,7 +299,6 @@ def trim_history_for_planner(history_text: str) -> str:
 
 
 def commit_log_to_main(iteration, branch_name, timestamp):
-    """Commit log files, graphs, and README updates to main."""
     run_bash(f"git add {RESEARCH_LOG_CSV} {RESEARCH_HISTORY_MD} graphs/ README.md")
     run_bash(f'git commit -m "LOG [{iteration}]: update research log ({branch_name})"')
     run_bash("git push origin main")
@@ -285,6 +307,11 @@ def commit_log_to_main(iteration, branch_name, timestamp):
 # ---------------------------------------------------------------------------
 # Graphs
 # ---------------------------------------------------------------------------
+
+LANG_MARKER     = {"rust": "o", "python": "s"}
+LANG_LINE_COLOR = {"rust": "#d35400", "python": "#1a5276"}
+LANG_DOT_KEPT   = {"rust": "#e67e22", "python": "#2980b9"}
+
 
 def generate_graphs():
     if not os.path.exists(RESEARCH_LOG_CSV):
@@ -296,115 +323,104 @@ def generate_graphs():
         reader = csv.DictReader(f)
         for r in reader:
             rows.append(r)
-
     if not rows:
         return
 
+    def safe_float(val):
+        try:
+            return float(val) if val not in (None, "", "None", "inf", "Inf") else None
+        except (TypeError, ValueError):
+            return None
+
     iterations = [int(r["iteration"]) for r in rows]
-    distances  = [float(r["distance"]) if r.get("distance") else None for r in rows]
-    times_ms   = [float(r["time_ms"]) if r.get("time_ms") else None for r in rows]
-    iq = [r["improves_quality"] == "True" for r in rows]
-    # kept: True if solution was accepted (quality improved OR faster without quality regression).
-    # Falls back to iq for CSVs written before the kept column was added.
-    kept = [r.get("kept", str(iq[i])) == "True" for i, r in enumerate(rows)]
-
-    def colour(i):
-        return "#2ecc71" if kept[i] else "#cccccc"
-
-    colours = [colour(i) for i in range(len(rows))]
-
-    kept_iters = [iterations[i] for i in range(len(rows)) if kept[i] and distances[i] is not None]
-    kept_dists  = [distances[i]  for i in range(len(rows)) if kept[i] and distances[i] is not None]
-    kept_times  = [times_ms[i]   for i in range(len(rows)) if kept[i] and times_ms[i] is not None]
-
-    green_patch = mpatches.Patch(color="#2ecc71", label="Kept (quality or runtime improvement)")
-    grey_patch  = mpatches.Patch(color="#cccccc", label="Discarded")
+    distances  = [safe_float(r.get("distance")) for r in rows]
+    times_ms   = [safe_float(r.get("time_ms"))  for r in rows]
+    languages  = [r.get("language", "rust") for r in rows]
+    iq         = [r.get("improves_quality", "False") == "True" for r in rows]
+    kept       = [r.get("kept", str(iq[i])) == "True" for i, r in enumerate(rows)]
 
     def dot_label(row):
-        """Return N_descriptor from branch name, e.g. experiment/3_tabu-search -> 3_tabu-search."""
         branch = row.get("branch", "")
         return branch.split("/")[-1] if "/" in branch else str(row.get("iteration", ""))
 
     # --- Distance vs Iteration ---
     fig, ax = plt.subplots(figsize=(12, 5))
-    valid = [(iterations[i], distances[i], colours[i]) for i in range(len(rows)) if distances[i] is not None]
-    if valid:
-        xi, yi, ci = zip(*valid)
-        ax.scatter(xi, yi, c=ci, s=40, zorder=3)
+    for lang in ["rust", "python"]:
+        xi = [iterations[i] for i in range(len(rows)) if languages[i] == lang and distances[i] is not None]
+        yi = [distances[i]  for i in range(len(rows)) if languages[i] == lang and distances[i] is not None]
+        ci = ["#2ecc71" if kept[i] else "#cccccc"
+              for i in range(len(rows)) if languages[i] == lang and distances[i] is not None]
+        if xi:
+            ax.scatter(xi, yi, c=ci, s=40, marker=LANG_MARKER[lang], label=f"{lang}", zorder=3)
+        kx = [iterations[i] for i in range(len(rows)) if languages[i] == lang and kept[i] and distances[i] is not None]
+        ky = [distances[i]  for i in range(len(rows)) if languages[i] == lang and kept[i] and distances[i] is not None]
+        if kx:
+            ax.plot(kx, ky, color=LANG_LINE_COLOR[lang], linewidth=2,
+                    label=f"{lang} frontier", zorder=4)
     for i in range(len(rows)):
         if kept[i] and distances[i] is not None:
             ax.annotate(dot_label(rows[i]), (iterations[i], distances[i]),
                         textcoords="offset points", xytext=(5, 4),
                         fontsize=7, color="#1a7a40", zorder=5)
-    if kept_iters:
-        ax.plot(kept_iters, kept_dists, color="#27ae60", linewidth=2, zorder=4)
-    ax.axhline(BKS_DISTANCE, color="#e74c3c", linestyle="--", linewidth=1.2)
+    ax.axhline(BKS_DISTANCE, color="#e74c3c", linestyle="--", linewidth=1.2,
+               label=f"BKS {BKS_DISTANCE}")
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Total Distance")
     ax.set_title("Solution Quality vs Iteration")
-    ax.legend(handles=[
-        green_patch, grey_patch,
-        plt.Line2D([0], [0], color="#27ae60", linewidth=2, label="Kept frontier"),
-        plt.Line2D([0], [0], color="#e74c3c", linestyle="--", label=f"BKS {BKS_DISTANCE}"),
-    ])
+    ax.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(GRAPHS_DIR, "distance_vs_iteration.png"), dpi=120)
     plt.close()
 
-    # --- Runtime vs Iteration ---
+    # --- Runtime vs Iteration (compare within language only) ---
     fig, ax = plt.subplots(figsize=(12, 5))
-    valid_t = [(iterations[i], times_ms[i], colours[i]) for i in range(len(rows)) if times_ms[i] is not None]
-    if valid_t:
-        xi, yi, ci = zip(*valid_t)
-        ax.scatter(xi, yi, c=ci, s=40, zorder=3)
-    for i in range(len(rows)):
-        if kept[i] and times_ms[i] is not None:
-            ax.annotate(dot_label(rows[i]), (iterations[i], times_ms[i]),
-                        textcoords="offset points", xytext=(5, 4),
-                        fontsize=7, color="#1a5276", zorder=5)
-    if kept_iters:
-        ax.plot(kept_iters, kept_times, color="#2980b9", linewidth=2, zorder=4)
+    for lang in ["rust", "python"]:
+        xi = [iterations[i] for i in range(len(rows)) if languages[i] == lang and times_ms[i] is not None]
+        yi = [times_ms[i]   for i in range(len(rows)) if languages[i] == lang and times_ms[i] is not None]
+        ci = ["#2ecc71" if kept[i] else "#cccccc"
+              for i in range(len(rows)) if languages[i] == lang and times_ms[i] is not None]
+        if xi:
+            ax.scatter(xi, yi, c=ci, s=40, marker=LANG_MARKER[lang], label=f"{lang}", zorder=3)
+        kx = [iterations[i] for i in range(len(rows)) if languages[i] == lang and kept[i] and times_ms[i] is not None]
+        ky = [times_ms[i]   for i in range(len(rows)) if languages[i] == lang and kept[i] and times_ms[i] is not None]
+        if kx:
+            ax.plot(kx, ky, color=LANG_LINE_COLOR[lang], linewidth=2,
+                    label=f"{lang} frontier", zorder=4)
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Runtime (ms)")
-    ax.set_title("Solver Runtime vs Iteration")
-    ax.legend(handles=[
-        green_patch, grey_patch,
-        plt.Line2D([0], [0], color="#2980b9", linewidth=2, label="Runtime of kept solutions"),
-    ])
+    ax.set_title("Solver Runtime vs Iteration  [compare within language only]")
+    ax.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(GRAPHS_DIR, "runtime_vs_iteration.png"), dpi=120)
     plt.close()
 
     # --- Quality vs Runtime (Pareto scatter) ---
     fig, ax = plt.subplots(figsize=(8, 6))
-    valid_p = [
-        (times_ms[i], distances[i], colours[i], rows[i])
-        for i in range(len(rows))
-        if times_ms[i] is not None and distances[i] is not None
-    ]
-    if valid_p:
-        xt, yd, cp, _ = zip(*valid_p)
-        ax.scatter(xt, yd, c=cp, s=60, zorder=3)
-        for t, d, _, row in valid_p:
-            ax.annotate(dot_label(row), (t, d),
-                        textcoords="offset points", xytext=(5, 4),
-                        fontsize=7, color="#555555", zorder=5)
+    for lang in ["rust", "python"]:
+        valid = [(times_ms[i], distances[i], kept[i], rows[i])
+                 for i in range(len(rows))
+                 if languages[i] == lang and times_ms[i] is not None and distances[i] is not None]
+        if valid:
+            xt, yd, kp, rs = zip(*valid)
+            cp = ["#2ecc71" if k else "#cccccc" for k in kp]
+            ax.scatter(xt, yd, c=cp, s=60, marker=LANG_MARKER[lang], label=lang, zorder=3)
+            for t, d, _, row in valid:
+                ax.annotate(dot_label(row), (t, d),
+                            textcoords="offset points", xytext=(5, 4),
+                            fontsize=7, color="#555555", zorder=5)
     ax.axhline(BKS_DISTANCE, color="#e74c3c", linestyle="--", linewidth=1.2,
                label=f"BKS {BKS_DISTANCE}")
     ax.set_xlabel("Runtime (ms)")
     ax.set_ylabel("Total Distance")
     ax.set_title("Solution Quality vs Runtime")
-    ax.legend(handles=[
-        green_patch, grey_patch,
-        plt.Line2D([0], [0], color="#e74c3c", linestyle="--", label=f"BKS {BKS_DISTANCE}"),
-    ])
+    ax.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(GRAPHS_DIR, "quality_vs_runtime.png"), dpi=120)
     plt.close()
 
 
 # ---------------------------------------------------------------------------
-# README graph block update
+# README updates
 # ---------------------------------------------------------------------------
 
 def update_readme_graphs():
@@ -448,7 +464,7 @@ def update_readme_best_result(vehicles, distance, time_ms):
         f"| Vehicles | {vehicles} |\n"
         f"| Total distance | {distance:.2f} |\n"
         f"| Gap to BKS | ~{gap_pct:.1f} % |\n"
-        f"| Runtime | ~{time_ms / 1000:.1f} s |\n"
+        f"| Runtime | ~{time_ms / 1000:.1f} s ({SOLVER_LANGUAGE}) |\n"
         f"{marker_end}"
     )
     if marker_start in content and marker_end in content:
@@ -478,29 +494,45 @@ signal.signal(signal.SIGINT, graceful_exit)
 # ---------------------------------------------------------------------------
 
 os.makedirs(GRAPHS_DIR, exist_ok=True)
+ensure_venv()
+migrate_research_log()
 
 print("=== VRPTW Auto-Research Loop ===")
-print(f"Planner: {PLANNER} | Coder: {CODER}")
+print(f"Planner: {PLANNER} | Coder: {CODER} | Language: {SOLVER_LANGUAGE}")
 print(f"Max iterations: {MAX_ITERATIONS if MAX_ITERATIONS > 0 else 'unlimited'} | Solver cap: {SOLVER_TIMEOUT_S}s")
 
 # ---------------------------------------------------------------------------
-# Bootstrap: if no baseline exists, run the current solver once to seed files
+# Bootstrap: run the solver once to seed files (or re-seed on language switch)
 # ---------------------------------------------------------------------------
-if not os.path.exists(BEST_RESULT_JSON):
-    print("\n[Bootstrap] No baseline found. Running current solver to establish baseline...")
-    run_bash("cargo build --release 2>&1")
+
+needs_bootstrap = not os.path.exists(BEST_RESULT_JSON)
+if not needs_bootstrap:
+    _best = load_best_result()
+    if _best and _best.get("language", "rust") != SOLVER_LANGUAGE:
+        print(f"\n[Bootstrap] Language switched from '{_best.get('language', 'rust')}' "
+              f"to '{SOLVER_LANGUAGE}'. Re-running bootstrap to establish new baseline.")
+        needs_bootstrap = True
+
+if needs_bootstrap:
+    print("\n[Bootstrap] Running solver to establish baseline...")
+    apply_python_dependencies(open(SOLVER_FILE).read())
     try:
-        solver_out, _ = run_bash(
-            f"./target/release/vrptw_autoresearch {INSTANCE_PATH}",
-            timeout=SOLVER_TIMEOUT_S
+        solver_out, rc = run_bash(
+            f"{PYTHON} {SOLVER_SCRIPT} {INSTANCE_PATH}",
+            timeout=SOLVER_TIMEOUT_S,
         )
     except subprocess.TimeoutExpired:
         print("!!! Bootstrap solver timed out. Cannot establish baseline. Exiting.")
         sys.exit(1)
 
+    if rc != 0:
+        print(f"!!! Bootstrap solver failed (exit {rc}):")
+        print(solver_out[:800])
+        sys.exit(1)
+
     bv, bd, bt = parse_solver_output(solver_out)
     if bv is None or bd is None or bt is None:
-        print("!!! Bootstrap solver produced no output. Exiting.")
+        print("!!! Bootstrap solver produced no parseable output. Exiting.")
         print(solver_out[:800])
         sys.exit(1)
 
@@ -519,25 +551,26 @@ if not os.path.exists(BEST_RESULT_JSON):
         "improves_quality": True,
         "improves_time":    True,
         "kept":             True,
-        "summary":          "Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)",
+        "language":         SOLVER_LANGUAGE,
+        "summary":          "Baseline: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3) + inter-route-2opt",
     })
     append_history(
-        f"## Iteration 0 (Baseline) — {time.strftime('%Y-%m-%dT%H:%M:%S')}\n"
+        f"## Iteration 0 (Baseline — {SOLVER_LANGUAGE}) — {time.strftime('%Y-%m-%dT%H:%M:%S')}\n"
         f"Branch: `main`\n"
         f"Result: {bv}v / {bd:.2f} / {bt:.0f}ms / gap {gap_pct:.2f}%\n"
-        f"Construction: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3)\n\n---\n"
+        f"Construction: Regret-2 + vehicle reduction + 2-opt + Or-opt(1/2/3) + inter-route-2opt\n\n---\n"
     )
     generate_graphs()
     update_readme_graphs()
-    run_bash(f"git add {RESEARCH_LOG_CSV} {RESEARCH_HISTORY_MD} {BEST_RESULT_JSON} graphs/ README.md")
-    run_bash('git commit -m "LOG [0]: baseline seeded"')
+    update_readme_best_result(bv, bd, bt)
+    run_bash(f"git add {RESEARCH_LOG_CSV} {RESEARCH_HISTORY_MD} {BEST_RESULT_JSON} graphs/ README.md {SOLVER_FILE} {SOLVER_SCRIPT}")
+    run_bash('git commit -m "LOG [0]: python baseline seeded"')
     run_bash("git push origin main")
     print("[Bootstrap] Baseline seeded and committed to main.\n")
 
 loop_iteration = get_iteration_count()
 iterations_done = 0
 
-# Load static system prompts once
 SYS_PLANNER = load_prompt("sys_planner")
 SYS_CODER   = load_prompt("sys_coder")
 SYS_REPAIR  = load_prompt("sys_repair")
@@ -547,7 +580,7 @@ while True:
         print(f">>> Reached {MAX_ITERATIONS} iterations. Stopping.")
         break
 
-    loop_iteration += 1
+    loop_iteration  += 1
     iterations_done += 1
     timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
 
@@ -561,7 +594,7 @@ while True:
     base_distance = best["distance"] if best else float("inf")
     base_time_ms  = best["time_ms"]  if best else float("inf")
 
-    with open("src/solver.rs", "r") as f:
+    with open(SOLVER_FILE, "r") as f:
         current_solver_code = f.read()
 
     prior_history = ""
@@ -570,16 +603,19 @@ while True:
             prior_history = trim_history_for_planner(f.read())
 
     # -----------------------------------------------------------------------
-    # PHASE 1: PLANNING (Qwen) — runs on main before branch is created
+    # PHASE 1: PLANNING
     # -----------------------------------------------------------------------
     print(f"\n>>> Iteration {loop_iteration}")
     print(f"    Baseline: {base_vehicles}v / {base_distance:.2f} / {base_time_ms:.0f}ms")
     print(f"[{PLANNER}] Devising strategy...")
 
-    current_gap_pct = round((base_distance - BKS_DISTANCE) / BKS_DISTANCE * 100, 2) if base_distance < float("inf") else float("inf")
+    current_gap_pct = (
+        round((base_distance - BKS_DISTANCE) / BKS_DISTANCE * 100, 2)
+        if base_distance < float("inf") else float("inf")
+    )
     user_planner = (
         f"PRIOR RESEARCH HISTORY:\n{prior_history or '(none yet — this is the first iteration)'}\n\n"
-        f"CURRENT src/solver.rs (the ONLY file you should propose changes to):\n{current_solver_code}\n\n"
+        f"CURRENT {SOLVER_FILE} (the ONLY file you should propose changes to):\n{current_solver_code}\n\n"
         f"CURRENT BEST PERFORMANCE:\n"
         f"  Vehicles : {base_vehicles}\n"
         f"  Distance : {base_distance:.2f}\n"
@@ -588,10 +624,10 @@ while True:
     )
 
     try:
-        plan = call_local_llm(
+        plan_raw = call_local_llm(
             PLANNER, SYS_PLANNER, user_planner,
-            nudge="Your previous attempt failed or was interrupted. Please be more concise — "
-                  "keep reasoning brief and focus on a single, clearly scoped implementation plan.",
+            nudge="Your previous attempt failed or was interrupted. Be concise — "
+                  "return a single valid JSON object only.",
         )
     except Exception as e:
         print(f"!!! Planner failed after {LLM_RETRY_ATTEMPTS} attempts: {e}")
@@ -611,36 +647,71 @@ while True:
         continue
     force_unload(PLANNER)
 
-    descriptor, summary = parse_plan_header(plan)
+    try:
+        plan = parse_plan_json(plan_raw)
+    except (ValueError, json.JSONDecodeError) as e:
+        print(f"!!! Planner produced unparseable JSON: {e}")
+        print(f"    Raw output (first 400 chars): {plan_raw[:400]}")
+        append_history(
+            f"\n## Iteration {loop_iteration} — {timestamp}\n"
+            f"Branch: (none — planner JSON parse failed)\n"
+            f"Proposal: (none)\n"
+            f"Result: PLANNER JSON PARSE FAILURE\n"
+            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
+            f"Decision: DISCARDED\n\n---\n"
+        )
+        run_bash(f"git add {RESEARCH_HISTORY_MD}")
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: planner-json-fail"')
+        run_bash("git push origin main")
+        time.sleep(COOLDOWN_S)
+        continue
+
+    descriptor  = sanitise_descriptor(plan.get("descriptor", ""))
+    summary     = plan.get("summary", "(no summary provided)")
+    reasoning   = plan.get("reasoning", "")
     branch_name = f"experiment/{loop_iteration}_{descriptor}"
     print(f"    Branch: {branch_name}")
     print(f"    Proposal: {summary}")
+    if reasoning:
+        print(f"    Reasoning: {reasoning[:200]}")
+
+    # Human-readable plan string passed to the coder as context
+    impl_steps = plan.get("implementation", [])
+    impl_text  = "\n".join(f"{i+1}. {s}" for i, s in enumerate(impl_steps))
+    plan_text = (
+        f"DESCRIPTOR: {descriptor}\n"
+        f"SUMMARY: {summary}\n\n"
+        f"REASONING: {reasoning}\n\n"
+        f"CHANGE: {plan.get('change', '')}\n"
+        f"WHY: {plan.get('why', '')}\n\n"
+        f"IMPLEMENTATION:\n{impl_text}"
+    )
 
     # -----------------------------------------------------------------------
-    # Create experiment branch; write the plan into it (not into main)
+    # Create experiment branch; write the plan JSON into it
     # -----------------------------------------------------------------------
     run_bash(f"git checkout -b {branch_name}")
 
-    with open(EXPERIMENT_PLAN_MD, "w") as f:
-        f.write(plan)
+    with open(EXPERIMENT_PLAN_JSON, "w") as f:
+        json.dump(plan, f, indent=2)
 
     # -----------------------------------------------------------------------
-    # PHASE 2: CODING (Qwen)
+    # PHASE 2: CODING
     # -----------------------------------------------------------------------
     print(f"[{CODER}] Implementing...")
 
     try:
         new_code_raw = call_local_llm(
             CODER, SYS_CODER,
-            f"IMPLEMENTATION PLAN:\n{plan}\n\nCURRENT src/solver.rs:\n{current_solver_code}",
-            nudge="Your previous attempt failed. Return ONLY a single ```rust``` code block "
-                  "containing the complete src/solver.rs — no explanations, no stubs.",
+            f"IMPLEMENTATION PLAN:\n{plan_text}\n\nCURRENT {SOLVER_FILE}:\n{current_solver_code}",
+            nudge="Your previous attempt failed. Return ONLY a single ```python``` code block "
+                  "containing the complete solver.py — no explanations, no stubs.",
             temperature=0.0,
         )
     except Exception as e:
         print(f"!!! Coder failed after {LLM_RETRY_ATTEMPTS} attempts: {e}")
         force_unload(CODER)
-        run_bash("git add experiment_plan.md")
+        run_bash(f"git add {EXPERIMENT_PLAN_JSON}")
         run_bash(f'git commit -m "CODER-FAILED [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
@@ -658,142 +729,88 @@ while True:
         time.sleep(COOLDOWN_S)
         continue
 
-    clean_code = extract_rust_code(new_code_raw)
-    apply_dependencies(clean_code)
-    with open("src/solver.rs", "w") as f:
-        f.write(clean_code)
+    new_code = extract_python_code(new_code_raw)
+    apply_python_dependencies(new_code)
+    with open(SOLVER_FILE, "w") as f:
+        f.write(new_code)
 
-    compiled_successfully = False
-    last_compile_errors = ""
+    # -----------------------------------------------------------------------
+    # PHASE 3: RUN (with repair loop on failure)
+    # -----------------------------------------------------------------------
+    ran_successfully = False
+    last_error       = ""
+    new_vehicles = new_distance = new_time_ms = None
+
     for attempt in range(1, MAX_REPAIR_ATTEMPTS + 1):
-        print(f"[Compiler] Attempt {attempt}/{MAX_REPAIR_ATTEMPTS}...")
-        output, rc = run_bash("cargo check 2>&1")
+        print(f"[Runner] Attempt {attempt}/{MAX_REPAIR_ATTEMPTS}...")
+        try:
+            solver_out, rc = run_bash(
+                f"{PYTHON} {SOLVER_SCRIPT} {INSTANCE_PATH}",
+                timeout=SOLVER_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired:
+            last_error = f"Solver timed out after {SOLVER_TIMEOUT_S}s"
+            print(f"    {last_error}")
+            break  # timeout — don't repair, archive directly
+
         if rc == 0:
-            print(">>> Compiled successfully.")
-            compiled_successfully = True
+            v, d, t = parse_solver_output(solver_out)
+            if v is not None and d is not None and t is not None:
+                ran_successfully = True
+                new_vehicles, new_distance, new_time_ms = v, d, t
+                print(">>> Ran successfully.")
+                break
+            last_error = f"Solver ran but produced no parseable output:\n{solver_out[:500]}"
+        else:
+            last_error = solver_out[-3000:]  # traceback is in stderr, merged by run_bash
+
+        print(f"    Run failed (attempt {attempt}). " +
+              ("Sending error to repair model..." if attempt < MAX_REPAIR_ATTEMPTS else "Exhausted repair attempts."))
+
+        if attempt >= MAX_REPAIR_ATTEMPTS:
             break
 
-        last_compile_errors = output
-        apply_dependencies_from_errors(output)
-        print(f"    Compile failed. Sending errors to {CODER}...")
-        with open("src/solver.rs", "r") as f:
+        with open(SOLVER_FILE, "r") as f:
             broken_code = f.read()
-
         try:
             repair_raw = call_local_llm(
                 CODER, SYS_REPAIR,
-                f"COMPILER ERRORS:\n{output}\n\nBROKEN src/solver.rs:\n{broken_code}",
-                nudge="Your previous attempt failed. Fix ALL errors and return ONLY a single ```rust``` block.",
+                f"ERROR OUTPUT:\n{last_error}\n\nBROKEN {SOLVER_FILE}:\n{broken_code}",
+                nudge="Your previous attempt failed. Fix ALL errors and return ONLY a single ```python``` block.",
                 temperature=0.0,
             )
         except Exception as e:
-            print(f"    [LLM] Repair call failed: {type(e).__name__}: {e}. Counting as failed attempt.")
+            print(f"    [LLM] Repair call failed: {type(e).__name__}: {e}. Continuing.")
             continue
-        clean_code = extract_rust_code(repair_raw)
-        apply_dependencies(clean_code)
-        with open("src/solver.rs", "w") as f:
-            f.write(clean_code)
+        new_code = extract_python_code(repair_raw)
+        apply_python_dependencies(new_code)
+        with open(SOLVER_FILE, "w") as f:
+            f.write(new_code)
 
     force_unload(CODER)
 
-    if not compiled_successfully:
-        # Truncate errors to first 25 lines so the planner can read the root cause
-        # without the history entry becoming too large.
-        error_lines = last_compile_errors.strip().splitlines()
-        error_snippet = "\n".join(error_lines[:25])
-        if len(error_lines) > 25:
-            error_snippet += f"\n... ({len(error_lines) - 25} more lines)"
+    if not ran_successfully:
+        error_lines = last_error.strip().splitlines()
+        error_snippet = "\n".join(error_lines[:30])
+        if len(error_lines) > 30:
+            error_snippet += f"\n... ({len(error_lines) - 30} more lines)"
 
-        print(">>> Max repair attempts reached. Archiving branch for manual review.")
-        run_bash("git add src/solver.rs experiment_plan.md")
-        run_bash(f'git commit -m "FAILED COMPILE [{loop_iteration}]: {descriptor}"')
+        print(">>> Failed to run. Archiving branch.")
+        run_bash(f"git add {SOLVER_FILE} {EXPERIMENT_PLAN_JSON}")
+        run_bash(f'git commit -m "FAILED RUN [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
         append_history(
             f"\n## Iteration {loop_iteration} — {timestamp}\n"
             f"Branch: `{branch_name}`\n"
             f"Proposal: {summary}\n"
-            f"Result: FAILED COMPILE — exhausted {MAX_REPAIR_ATTEMPTS} repair attempts\n"
-            f"Compile errors (last attempt):\n```\n{error_snippet}\n```\n"
+            f"Result: FAILED RUN — exhausted {MAX_REPAIR_ATTEMPTS} repair attempts\n"
+            f"Error (last attempt):\n```\n{error_snippet}\n```\n"
             f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
             f"Decision: DISCARDED\n\n---\n"
         )
         run_bash(f"git add {RESEARCH_HISTORY_MD}")
-        run_bash(f'git commit -m "LOG [{loop_iteration}]: compile-fail ({branch_name})"')
-        run_bash("git push origin main")
-        time.sleep(COOLDOWN_S)
-        continue
-
-    # -----------------------------------------------------------------------
-    # PHASE 3: BUILD & RUN
-    # -----------------------------------------------------------------------
-    print("[Solver] Building release binary...")
-    build_out, build_rc = run_bash("cargo build --release 2>&1")
-    if build_rc != 0:
-        print("!!! Release build failed after cargo check passed. Archiving.")
-        run_bash("git add src/solver.rs experiment_plan.md")
-        run_bash(f'git commit -m "FAILED BUILD [{loop_iteration}]: {descriptor}"')
-        run_bash(f"git push origin {branch_name}")
-        run_bash("git checkout main")
-        append_history(
-            f"\n## Iteration {loop_iteration} — {timestamp}\n"
-            f"Branch: `{branch_name}`\n"
-            f"Proposal: {summary}\n"
-            f"Result: FAILED RELEASE BUILD — cargo check passed but cargo build --release failed\n"
-            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
-            f"Decision: DISCARDED\n\n---\n"
-        )
-        run_bash(f"git add {RESEARCH_HISTORY_MD}")
-        run_bash(f'git commit -m "LOG [{loop_iteration}]: build-fail ({branch_name})"')
-        run_bash("git push origin main")
-        time.sleep(COOLDOWN_S)
-        continue
-
-    print(f"[Solver] Running on RC1_4_1 (timeout {SOLVER_TIMEOUT_S}s)...")
-    try:
-        solver_out, _ = run_bash(
-            f"./target/release/vrptw_autoresearch {INSTANCE_PATH}",
-            timeout=SOLVER_TIMEOUT_S
-        )
-    except subprocess.TimeoutExpired:
-        print("!!! Solver timed out. Archiving branch.")
-        run_bash("git add experiment_plan.md src/solver.rs")
-        run_bash(f'git commit -m "TIMEOUT [{loop_iteration}]: {descriptor}"')
-        run_bash(f"git push origin {branch_name}")
-        run_bash("git checkout main")
-        append_history(
-            f"\n## Iteration {loop_iteration} — {timestamp}\n"
-            f"Branch: `{branch_name}`\n"
-            f"Proposal: {summary}\n"
-            f"Result: TIMEOUT — solver exceeded {SOLVER_TIMEOUT_S}s\n"
-            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
-            f"Decision: DISCARDED\n\n---\n"
-        )
-        run_bash(f"git add {RESEARCH_HISTORY_MD}")
-        run_bash(f'git commit -m "LOG [{loop_iteration}]: timeout ({branch_name})"')
-        run_bash("git push origin main")
-        time.sleep(COOLDOWN_S)
-        continue
-
-    new_vehicles, new_distance, new_time_ms = parse_solver_output(solver_out)
-
-    if new_vehicles is None or new_distance is None or new_time_ms is None:
-        print("!!! Solver produced no parseable output. Archiving branch.")
-        print(solver_out[:800])
-        run_bash("git add experiment_plan.md src/solver.rs")
-        run_bash(f'git commit -m "NO-OUTPUT [{loop_iteration}]: {descriptor}"')
-        run_bash(f"git push origin {branch_name}")
-        run_bash("git checkout main")
-        append_history(
-            f"\n## Iteration {loop_iteration} — {timestamp}\n"
-            f"Branch: `{branch_name}`\n"
-            f"Proposal: {summary}\n"
-            f"Result: NO PARSEABLE OUTPUT\n"
-            f"Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf\n"
-            f"Decision: DISCARDED\n\n---\n"
-        )
-        run_bash(f"git add {RESEARCH_HISTORY_MD}")
-        run_bash(f'git commit -m "LOG [{loop_iteration}]: no-output ({branch_name})"')
+        run_bash(f'git commit -m "LOG [{loop_iteration}]: run-fail ({branch_name})"')
         run_bash("git push origin main")
         time.sleep(COOLDOWN_S)
         continue
@@ -813,7 +830,7 @@ while True:
 
     if validator_rc != 0:
         print("!!! Solution infeasible. Archiving branch.")
-        run_bash(f"git add experiment_plan.md src/solver.rs {SOLUTION_FILE}")
+        run_bash(f"git add {EXPERIMENT_PLAN_JSON} {SOLVER_FILE} {SOLUTION_FILE}")
         run_bash(f'git commit -m "INFEASIBLE [{loop_iteration}]: {descriptor}"')
         run_bash(f"git push origin {branch_name}")
         run_bash("git checkout main")
@@ -836,9 +853,9 @@ while True:
     # -----------------------------------------------------------------------
     # PHASE 4: ACCEPT / REJECT
     # -----------------------------------------------------------------------
-    quality_improved  = is_better_solution(new_vehicles, new_distance, base_vehicles, base_distance)
-    quality_worsened  = solution_worsened(new_vehicles, new_distance, base_vehicles, base_distance)
-    time_improved     = new_time_ms < base_time_ms
+    quality_improved = is_better_solution(new_vehicles, new_distance, base_vehicles, base_distance)
+    quality_worsened = solution_worsened(new_vehicles, new_distance, base_vehicles, base_distance)
+    time_improved    = new_time_ms < base_time_ms
     keep = quality_improved or (time_improved and not quality_worsened)
 
     log_row = {
@@ -852,6 +869,7 @@ while True:
         "improves_quality": quality_improved,
         "improves_time":    time_improved,
         "kept":             keep,
+        "language":         SOLVER_LANGUAGE,
         "summary":          summary,
     }
     history_entry = (
@@ -872,17 +890,14 @@ while True:
         generate_graphs()
         update_readme_graphs()
         update_readme_best_result(new_vehicles, new_distance, new_time_ms)
-        # Commit everything (including experiment_plan.md) to the experiment branch for reference
         run_bash("git add .")
         run_bash(
             f'git commit -m "IMPROVEMENT [{loop_iteration}]: '
             f'{new_vehicles}v {new_distance:.2f}dist {new_time_ms:.0f}ms ({descriptor})"'
         )
-        # Push the experiment branch so experiment_plan.md is preserved on origin
         run_bash(f"git push origin {branch_name}")
-        # Apply only the files we want to main — experiment_plan.md stays on the branch
         run_bash("git checkout main")
-        run_bash(f"git checkout {branch_name} -- src/solver.rs")
+        run_bash(f"git checkout {branch_name} -- {SOLVER_FILE}")
         run_bash(f"git checkout {branch_name} -- {SOLUTION_FILE}")
         run_bash(f"git checkout {branch_name} -- {BEST_RESULT_JSON}")
         run_bash(f"git checkout {branch_name} -- {RESEARCH_LOG_CSV}")
@@ -895,8 +910,7 @@ while True:
         )
         run_bash("git push origin main")
     else:
-        print(f"--- Not dominant. Archiving branch.")
-        # Commit experiment results to the experiment branch
+        print("--- Not dominant. Archiving branch.")
         append_research_log(log_row)
         append_history(history_entry)
         generate_graphs()
@@ -906,7 +920,6 @@ while True:
             f'{new_vehicles}v {new_distance:.2f}dist {new_time_ms:.0f}ms ({descriptor})"'
         )
         run_bash(f"git push origin {branch_name}")
-        # Switch to main and re-apply the log entries so main is always complete
         run_bash("git checkout main")
         append_research_log(log_row)
         append_history(history_entry)

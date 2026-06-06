@@ -501,3 +501,12 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 27 (Python baseline) — 2026-06-06T00:00:00
+Branch: `main`
+Proposal: Direct port of Rust solver to Python (same algorithms, same results).
+Result: 40v / 9870.11 / 31836ms / gap 15.81%
+Note: Python runtime is ~16x Rust. This establishes the Python-language baseline for future comparisons.
+Decision: KEPT (python baseline)
+
+---
