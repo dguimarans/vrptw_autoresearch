@@ -66,7 +66,8 @@ def force_unload(model_name):
 # LLM
 # ---------------------------------------------------------------------------
 
-def call_local_llm(model, system_prompt, user_content, nudge=None, temperature=0.2):
+def call_local_llm(model, system_prompt, user_content, nudge=None, temperature=0.2,
+                   json_mode=False):
     last_exc = None
     for attempt in range(1, LLM_RETRY_ATTEMPTS + 1):
         try:
@@ -79,6 +80,8 @@ def call_local_llm(model, system_prompt, user_content, nudge=None, temperature=0
                 ],
                 "temperature": temperature,
             }
+            if json_mode:
+                payload["response_format"] = {"type": "json_object"}
             response = requests.post(OLLAMA_URL, json=payload, timeout=LLM_TIMEOUT_S)
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"]
@@ -157,14 +160,19 @@ def apply_python_dependencies(code: str):
 
 def parse_plan_json(raw: str) -> dict:
     """Extract and parse the JSON plan from planner output.
-    Strips DeepSeek-R1 <think>...</think> blocks, then finds the JSON object."""
-    # Remove think blocks
+    Strips DeepSeek-R1 <think>...</think> blocks, then finds the JSON object.
+    Applies trailing-comma repair as a fallback for the most common model mistake."""
     text = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-    # Find outermost JSON object
     m = re.search(r"\{.*\}", text, re.DOTALL)
     if not m:
         raise ValueError(f"No JSON object found in planner output:\n{raw[:400]}")
-    return json.loads(m.group(0))
+    candidate = m.group(0)
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        # Strip trailing commas before } or ] — most common small-model mistake
+        repaired = re.sub(r",\s*([}\]])", r"\1", candidate)
+        return json.loads(repaired)
 
 
 def sanitise_descriptor(descriptor: str) -> str:
@@ -628,6 +636,7 @@ while True:
             PLANNER, SYS_PLANNER, user_planner,
             nudge="Your previous attempt failed or was interrupted. Be concise — "
                   "return a single valid JSON object only.",
+            json_mode=True,
         )
     except Exception as e:
         print(f"!!! Planner failed after {LLM_RETRY_ATTEMPTS} attempts: {e}")
@@ -682,8 +691,6 @@ while True:
         f"DESCRIPTOR: {descriptor}\n"
         f"SUMMARY: {summary}\n\n"
         f"REASONING: {reasoning}\n\n"
-        f"CHANGE: {plan.get('change', '')}\n"
-        f"WHY: {plan.get('why', '')}\n\n"
         f"IMPLEMENTATION:\n{impl_text}"
     )
 
