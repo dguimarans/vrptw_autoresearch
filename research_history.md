@@ -566,3 +566,48 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 33 — 2026-06-06T18:25:20
+Branch: `experiment/33_iterated-local-search-with-perturbation`
+Proposal: Add an iterated local search loop around the existing local search to escape local optima by randomly relocating a small number of customers between routes.
+Result: INFEASIBLE — solver ran but solution violates constraints
+Vehicles: 40  Distance: 11033.71  Time: 44509ms  Gap: 29.46%
+Violations:
+INFEASIBLE
+  Route 8: TW violated at customer 68 (service starts 326.28, due 218.00)
+  Route 9: capacity exceeded (202.0 > 200.0)
+  Route 9: TW violated at customer 279 (service starts 539.51, due 196.00)
+  Route 9: TW violated at customer 113 (service starts 733.37, due 137.00)
+  Route 9: TW violated at customer 343 (service starts 785.89, due 451.00)
+  Route 9: TW violated at customer 12 (service starts 807.30, due 595.00)
+  Route 9: depot return at 852.64 exceeds depot due 765.00
+  Route 20: TW violated at customer 318 (service starts 288.13, due 104.00)
+  Route 20: TW violated at customer 237 (service starts 386.05, due 220.00)
+  Route 26: TW violated at customer 313 (service starts 153.95, due 65.00)
+  Route 26: TW violated at customer 165 (service starts 191.61, due 99.00)
+  Route 26: TW violated at customer 90 (service starts 205.85, due 113.00)
+  Route 26: TW violated at customer 360 (service starts 217.27, due 124.00)
+  Route 26: TW violated at customer 108 (service starts 228.27, due 135.00)
+  Route 26: TW violated at customer 314 (service starts 281.28, due 195.00)
+  Route 26: TW violated at customer 166 (service starts 300.50, due 252.00)
+  Route 26: TW violated at customer 154 (service starts 331.11, due 282.00)
+  Route 30: TW violated at customer 366 (service starts 212.68, due 197.00)
+  Route 30: TW violated at customer 169 (service starts 320.09, due 141.00)
+  Route 30: TW violated at customer 361 (service starts 332.09, due 153.00)
+  Route 30: TW violated at customer 393 (service starts 349.37, due 171.00)
+  Route 30: TW violated at customer 85 (service starts 369.66, due 206.00)
+  Route 32: capacity exceeded (206.0 > 200.0)
+  Route 32: TW violated at customer 96 (service starts 292.71, due 126.00)
+  Route 32: TW violated at customer 239 (service starts 484.03, due 149.00)
+  Route 32: TW violated at customer 110 (service starts 496.03, due 161.00)
+  Route 32: TW violated at customer 345 (service starts 507.03, due 172.00)
+  Route 32: TW violated at customer 195 (service starts 518.45, due 184.00)
+  Route 32: TW violated at customer 111 (service starts 532.92, due 211.00)
+  Route 32: TW violated at customer 109 (service starts 549.00, due 227.00)
+  Route 32: TW violated at customer 271 (service starts 561.24, due 239.00)
+  Route 32: TW violated at customer 1 (service starts 577.32, due 267.00)
+  Route 32: TW violated at customer 364 (service starts 590.92, due 254.00)
+  Route 32: TW violated at customer 291 (service starts 609.98, due 462.00)
+Decision: DISCARDED
+
+---
