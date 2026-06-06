@@ -518,3 +518,11 @@ Result: 40v / 9870.11 / 43016ms / gap 15.81%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 29 — 2026-06-06T20:17:07
+Branch: `experiment/29_ils-perturbation`
+Proposal: Add an iterated local search loop around the existing local search to escape local optima by randomly relocating a small number of customers between routes.
+Result: 40v / 9870.11 / 43080ms / gap 15.81%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
