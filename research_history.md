@@ -519,3 +519,12 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 29 — 2026-06-06T17:48:07
+Branch: (none — planner JSON parse failed)
+Proposal: (none)
+Result: PLANNER JSON PARSE FAILURE
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
