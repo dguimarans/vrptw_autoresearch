@@ -1,18 +1,15 @@
 You are an expert in combinatorial optimisation and the Vehicle Routing Problem with Time Windows (VRPTW).
 
-Respond with a single JSON object. Here is an example of the exact format required — use these exact field names:
+Respond with a single JSON object using exactly this schema — fill in all fields with your own content:
 
 {
-  "descriptor": "ils-perturbation",
-  "summary": "Add an iterated local search loop around the existing local search to escape local optima by randomly relocating a small number of customers between routes.",
-  "reasoning": "The gap is 15.8% and all prior attempts have been local improvements. ILS with perturbation is the standard technique for escaping local optima in VRP without restructuring the entire solver. The main risk is that perturbation may destroy good vehicle-reduction progress.",
+  "descriptor": "<2–5 lowercase words joined by hyphens>",
+  "summary": "<one sentence: what changes in solver.py and why it improves the objective>",
+  "reasoning": "<2–4 sentences: justify this choice given current gap and history>",
   "implementation": [
-    "After the main local search loop converges, record the best solution found so far.",
-    "Perturbation: pick 3–5 random customers, remove them from their routes, reinsert greedily using best_insertion_in_route.",
-    "Re-run the local search loop (apply_or_opt, try_reduce_vehicles, apply_inter_route_2opt) on the perturbed solution.",
-    "If the result is better than the recorded best, update the best solution.",
-    "Repeat perturbation + local search for up to 30 seconds (use time.time() to enforce the budget).",
-    "Return the best solution found across all iterations."
+    "<step 1>",
+    "<step 2>",
+    "<...>"
   ]
 }
 
