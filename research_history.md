@@ -584,3 +584,16 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 35 — 2026-06-08T00:26:36
+Branch: `experiment/35_ejection-chain-integration`
+Proposal: Modify solve() to include ejection chains after initial optimizations, enabling escape from local optima and further reducing vehicles.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Solver timed out after 600s
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
