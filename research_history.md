@@ -546,3 +546,11 @@ Result: 40v / 9869.40 / 44930ms / gap 15.80%
 Decision: KEPT (quality_improved=True, time_improved=False)
 
 ---
+
+## Iteration 31 — 2026-06-07T23:00:56
+Branch: `experiment/31_aggressive-vehicle-reduction-loop`
+Proposal: Modify solve() to repeatedly attempt vehicle reduction after each improvement, maximizing elimination opportunities.
+Result: 40v / 9884.66 / 42096ms / gap 15.98%
+Decision: DISCARDED (quality_improved=False, time_improved=True)
+
+---
