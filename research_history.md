@@ -597,3 +597,29 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 36 — 2026-06-08T00:56:15
+Branch: `experiment/36_simulated-annealing-integration`
+Proposal: Modify solve() to include simulated annealing with perturbation and acceptance of non-improving moves, enabling escape from local optima.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 304, in solve
+    routes = simulated_annealing(prob, routes)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 266, in simulated_annealing
+    old_cost = route_distance(prob, routes[ri]) + route_distance(prob, routes[rj])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 115, in route_distance
+    d = dist(depot, prob.customers[customers[0]])
+                                   ~~~~~~~~~^^^
+TypeError: 'Route' object is not subscriptable
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
