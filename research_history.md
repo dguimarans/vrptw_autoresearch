@@ -518,3 +518,23 @@ Result: 42v / 10218.27 / 41274ms / gap 19.89%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 29 — 2026-06-07T21:54:00
+Branch: `experiment/29_iterated-local-search`
+Proposal: Modify solve() to implement an iterated local search with perturbation and multiple restarts within time budget.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 292, in solve
+    best_routes[ri].customers.insert(pos, removed_customers.pop(0))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^
+IndexError: pop from empty list
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
