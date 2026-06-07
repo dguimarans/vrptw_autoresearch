@@ -510,3 +510,11 @@ Note: Python runtime is ~16x Rust. This establishes the Python-language baseline
 Decision: KEPT (python baseline)
 
 ---
+
+## Iteration 28 — 2026-06-07T21:35:07
+Branch: `experiment/28_biased-random-construction`
+Proposal: Replace deterministic regret-2 route selection with probabilistic choice based on regrets to improve solution diversity.
+Result: 42v / 10218.27 / 41274ms / gap 19.89%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
