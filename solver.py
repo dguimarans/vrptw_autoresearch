@@ -199,7 +199,7 @@ def try_reduce_vehicles(prob: Problem, routes: list) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Inter-route 2-opt: swap two adjacent customer pairs between different routes
+# Inter-route 3-opt: swap three consecutive customers between different routes
 # ---------------------------------------------------------------------------
 
 def apply_inter_route_2opt(prob: Problem, routes: list) -> bool:
@@ -214,16 +214,18 @@ def apply_inter_route_2opt(prob: Problem, routes: list) -> bool:
                 for y in range(rj_len - 2):
                     ci  = routes[i].customers[x]
                     ci1 = routes[i].customers[x + 1]
+                    ci2 = routes[i].customers[x + 2]
                     cj  = routes[j].customers[y]
                     cj1 = routes[j].customers[y + 1]
+                    cj2 = routes[j].customers[y + 2]
 
                     old_d = (route_distance(prob, routes[i].customers) +
                              route_distance(prob, routes[j].customers))
 
                     new_ri = routes[i].customers[:]
-                    new_ri[x:x + 2] = [cj, cj1]
+                    new_ri[x:x + 3] = [cj, cj1, cj2]
                     new_rj = routes[j].customers[:]
-                    new_rj[y:y + 2] = [ci, ci1]
+                    new_rj[y:y + 3] = [ci, ci1, ci2]
 
                     if not route_feasible(prob, new_ri, 0.0) or not route_feasible(prob, new_rj, 0.0):
                         continue

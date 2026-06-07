@@ -538,3 +538,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 30 — 2026-06-07T22:43:23
+Branch: `experiment/30_inter-route-3-opt`
+Proposal: Modify apply_inter_route_2opt() to perform 3-opt swaps between routes, enabling larger route merges and better vehicle reduction.
+Result: 40v / 9869.40 / 44930ms / gap 15.80%
+Decision: KEPT (quality_improved=True, time_improved=False)
+
+---

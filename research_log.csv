@@ -14,3 +14,4 @@ iteration,timestamp,branch,vehicles,distance,time_ms,gap_pct,improves_quality,im
 20,2026-06-03T23:27:18,experiment/20_iterated-local-search,42,10052.1,3139.7,17.9422,False,False,False,rust,Introduce an iterated local search with perturbation to escape local optima and improve solution quality.
 27,2026-06-06T00:00:00,main,40,9870.11,31836.1,15.8069,False,False,True,python,Python baseline: direct port of Rust solver (Regret-2 + vehicle reduction + 2-opt + Or-opt + inter-route-2opt)
 28,2026-06-07T21:35:07,experiment/28_biased-random-construction,42,10218.27,41274.2,19.8919,False,False,False,python,Replace deterministic regret-2 route selection with probabilistic choice based on regrets to improve solution diversity.
+30,2026-06-07T22:43:23,experiment/30_inter-route-3-opt,40,9869.4,44929.7,15.7986,True,False,True,python,"Modify apply_inter_route_2opt() to perform 3-opt swaps between routes, enabling larger route merges and better vehicle reduction."

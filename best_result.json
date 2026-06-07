@@ -1,8 +1,8 @@
 {
   "vehicles": 40,
-  "distance": 9870.11,
-  "time_ms": 31836.1,
-  "iteration": 27,
-  "branch": "main",
+  "distance": 9869.4,
+  "time_ms": 44929.7,
+  "iteration": 30,
+  "branch": "experiment/30_inter-route-3-opt",
   "language": "python"
 }

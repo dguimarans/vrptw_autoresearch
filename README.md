@@ -101,9 +101,9 @@ The AI only edits `solver.py`. Run the solver via `python3 vrptw.py <instance>`.
 | Metric | Value |
 |---|---|
 | Vehicles | 40 |
-| Total distance | 9870.11 |
+| Total distance | 9869.40 |
 | Gap to BKS | ~15.8 % |
-| Runtime | ~31.8 s (python) |
+| Runtime | ~44.9 s (python) |
 <!-- BEST_RESULT_END -->
 
 ## Running manually
