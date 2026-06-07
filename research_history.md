@@ -554,3 +554,12 @@ Result: 40v / 9884.66 / 42096ms / gap 15.98%
 Decision: DISCARDED (quality_improved=False, time_improved=True)
 
 ---
+
+## Iteration 32 — 2026-06-07T23:17:58
+Branch: (none — planner JSON parse failed)
+Proposal: (none)
+Result: PLANNER JSON PARSE FAILURE
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
