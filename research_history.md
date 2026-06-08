@@ -734,3 +734,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 42 — 2026-06-08T11:37:26
+Branch: `experiment/42_biased-random-construction`
+Proposal: Replace deterministic regret-2 route selection with probabilistic choice based on regrets to improve solution diversity.
+Result: 42v / 9699.37 / 448577ms / gap 13.80%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
