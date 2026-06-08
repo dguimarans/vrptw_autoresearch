@@ -774,3 +774,11 @@ Result: 42v / 10172.62 / 2409843ms / gap 19.36%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 47 — 2026-06-08T14:37:07
+Branch: `experiment/47_adaptive-heuristic-selection`
+Proposal: Modify solve() to adaptively apply best next move from available heuristics (2-opt, Or-opt, vehicle reduction)
+Result: 40v / 10016.21 / 44980ms / gap 17.52%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
