@@ -1007,3 +1007,22 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 62 — 2026-06-09T00:53:10
+Branch: `experiment/62_iterated-local-search-perturbation`
+Proposal: Modify solve() to include an ILS loop with controlled perturbation and multiple improvement passes, improving solution quality by escaping local optima.
+Result: INFEASIBLE — solver ran but solution violates constraints
+Vehicles: 40  Distance: 10187.19  Time: 1034102ms  Gap: 19.53%
+Violations:
+INFEASIBLE
+  Route 20: TW violated at customer 97 (service starts 570.25, due 108.00)
+  Route 22: TW violated at customer 305 (service starts 283.66, due 205.00)
+  Route 26: TW violated at customer 272 (service starts 524.89, due 238.00)
+  Route 31: TW violated at customer 100 (service starts 614.11, due 118.00)
+  Route 36: capacity exceeded (225.0 > 200.0)
+  Route 36: TW violated at customer 192 (service starts 552.95, due 197.00)
+  Route 37: TW violated at customer 71 (service starts 548.81, due 139.00)
+  Route 40: TW violated at customer 196 (service starts 286.60, due 88.00)
+Decision: DISCARDED
+
+---
