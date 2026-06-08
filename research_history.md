@@ -994,3 +994,16 @@ Result: 40v / 9869.40 / 47106ms / gap 15.80%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 61 — 2026-06-08T23:08:14
+Branch: `experiment/61_ejection-chain-integration`
+Proposal: Integrate ejection chains into solve() to systematically remove and reinsert customers, escaping local optima and improving solution quality.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Solver timed out after 4800s
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
