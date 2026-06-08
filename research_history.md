@@ -920,3 +920,11 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 55 — 2026-06-08T19:33:07
+Branch: `experiment/55_ejection-chain-biased-construction`
+Proposal: Modify construction to use biased random selection and integrate ejection chains for route improvement.
+Result: 42v / 9754.10 / 62523ms / gap 14.45%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
