@@ -886,3 +886,25 @@ Result: 40v / 9953.11 / 67475ms / gap 16.78%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 53 — 2026-06-08T18:12:00
+Branch: `experiment/53_intensification-loop`
+Proposal: Add an intensification loop in solve() that periodically applies ejection chains and perturbations to escape local optima while maintaining time constraints.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 295, in solve
+    ejection_chain(prob, routes)
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 251, in ejection_chain
+    c_idx = route.customers[i]
+            ~~~~~~~~~~~~~~~^^^
+IndexError: list index out of range
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
