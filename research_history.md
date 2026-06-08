@@ -671,3 +671,28 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 38 — 2026-06-08T09:01:30
+Branch: `experiment/38_ejection-chain-integration`
+Proposal: Modify solve() to include ejection chains for systematic removal and reinsertion of customers, improving solution diversity and escaping local optima.
+Result: INFEASIBLE — solver ran but solution violates constraints
+Vehicles: 39  Distance: 9715.42  Time: 47364ms  Gap: 13.99%
+Violations:
+INFEASIBLE
+  Customer 60 never visited
+  Customer 81 never visited
+  Customer 83 never visited
+  Customer 176 never visited
+  Customer 194 never visited
+  Customer 212 never visited
+  Customer 223 never visited
+  Customer 248 never visited
+  Customer 273 never visited
+  Customer 315 never visited
+  Customer 328 never visited
+  Route 39: TW violated at customer 274 (service starts 688.07, due 198.00)
+  Route 39: TW violated at customer 54 (service starts 701.24, due 175.00)
+  Route 39: depot return at 804.02 exceeds depot due 765.00
+Decision: DISCARDED
+
+---
