@@ -841,3 +841,40 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 51 — 2026-06-08T17:17:28
+Branch: `experiment/51_iterated-local-search`
+Proposal: Modify solve() to include an ILS loop with perturbation and multiple improvement passes, improving solution quality by escaping local optima.
+Result: INFEASIBLE — solver ran but solution violates constraints
+Vehicles: 41  Distance: 9863.38  Time: 355355ms  Gap: 15.73%
+Violations:
+INFEASIBLE
+  Customer 248 visited 2 times (must be exactly once)
+  Customer 66 visited 2 times (must be exactly once)
+  Customer 83 visited 2 times (must be exactly once)
+  Customer 223 visited 2 times (must be exactly once)
+  Customer 176 visited 2 times (must be exactly once)
+  Customer 302 visited 2 times (must be exactly once)
+  Customer 341 visited 2 times (must be exactly once)
+  Customer 11 visited 2 times (must be exactly once)
+  Customer 394 visited 2 times (must be exactly once)
+  Customer 174 visited 2 times (must be exactly once)
+  Customer 294 visited 2 times (must be exactly once)
+  Customer 86 visited 2 times (must be exactly once)
+  Customer 124 visited 2 times (must be exactly once)
+  Customer 231 visited 2 times (must be exactly once)
+  Customer 13 visited 2 times (must be exactly once)
+  Customer 328 visited 2 times (must be exactly once)
+  Customer 240 visited 2 times (must be exactly once)
+  Customer 212 visited 2 times (must be exactly once)
+  Customer 60 visited 2 times (must be exactly once)
+  Customer 268 visited 2 times (must be exactly once)
+  Customer 79 never visited
+  Customer 158 never visited
+  Customer 203 never visited
+  Customer 270 never visited
+  Customer 327 never visited
+  Customer 336 never visited
+Decision: DISCARDED
+
+---
