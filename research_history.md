@@ -908,3 +908,15 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 54 — 2026-06-08T19:07:25
+Branch: `experiment/54_iterated-local-search`
+Proposal: Adds an iterated local search loop with controlled perturbation to escape local optima and improve solution quality.
+Result: INFEASIBLE — solver ran but solution violates constraints
+Vehicles: 40  Distance: 9862.16  Time: 69653ms  Gap: 15.71%
+Violations:
+INFEASIBLE
+  Customer 144 never visited
+Decision: DISCARDED
+
+---
