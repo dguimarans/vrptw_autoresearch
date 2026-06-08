@@ -742,3 +742,11 @@ Result: 42v / 9699.37 / 448577ms / gap 13.80%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 43 — 2026-06-08T12:18:50
+Branch: `experiment/43_iterated-local-search`
+Proposal: Add an iterated local search loop with route perturbation to escape local optima and improve solution quality.
+Result: 40v / 10016.21 / 41835ms / gap 17.52%
+Decision: DISCARDED (quality_improved=False, time_improved=True)
+
+---
