@@ -782,3 +782,25 @@ Result: 40v / 10016.21 / 44980ms / gap 17.52%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 48 — 2026-06-08T14:59:02
+Branch: `experiment/48_iterated-local-search`
+Proposal: Modify solve() to include iterated local search with perturbation and multiple improvement passes, improving solution quality by escaping local optima.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 300, in solve
+    perturb(prob, routes)
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 270, in perturb
+    routes[best_route_idx].customers.insert(best_pos, c_idx)
+    ~~~~~~^^^^^^^^^^^^^^^^
+TypeError: list indices must be integers or slices, not NoneType
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
