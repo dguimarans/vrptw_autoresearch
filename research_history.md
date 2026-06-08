@@ -986,3 +986,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 60 — 2026-06-08T22:44:10
+Branch: `experiment/60_inter-route-2opt-loop`
+Proposal: Add a loop applying inter-route 2-opt followed by vehicle reduction to fully leverage route merging opportunities.
+Result: 40v / 9869.40 / 47106ms / gap 15.80%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
