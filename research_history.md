@@ -878,3 +878,11 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 52 — 2026-06-08T17:45:41
+Branch: `experiment/52_ejection-chain-integration`
+Proposal: Modify solve() to include ejection chains for systematic removal and reinsertion of customers, improving solution diversity and escaping local opta
+Result: 40v / 9953.11 / 67475ms / gap 16.78%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
