@@ -928,3 +928,23 @@ Result: 42v / 9754.10 / 62523ms / gap 14.45%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 56 — 2026-06-08T20:01:21
+Branch: `experiment/56_biased-random-construction`
+Proposal: Modify regret2_construction() to use biased random selection based on regrets, improving solution diversity.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 229, in solve
+    inter = apply_inter_route_2opt(prob, routes)
+            ^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'apply_inter_route_2opt' is not defined
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
