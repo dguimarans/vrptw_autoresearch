@@ -819,3 +819,25 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 50 — 2026-06-08T16:20:55
+Branch: `experiment/50_intra-route-3opt`
+Proposal: Modify apply_2opt_intra() to perform 3-opt swaps within routes, improving local optima escape and distance reduction.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 302, in solve
+    apply_2opt_intra(prob, routes)
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 80, in apply_2opt_intra
+    dist(prob.customers[cj], prob.customers[cj1]))
+                             ~~~~~~~~~~~~~~^^^^^
+TypeError: list indices must be integers or slices, not NoneType
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
