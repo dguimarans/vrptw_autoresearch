@@ -696,3 +696,11 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 39 — 2026-06-08T09:41:05
+Branch: `experiment/39_delayed-vehicle-reduction`
+Proposal: Delay vehicle reduction attempts until after route optimization completes, improving opportunities for elimination.
+Result: 42v / 10044.64 / 58616ms / gap 17.85%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
