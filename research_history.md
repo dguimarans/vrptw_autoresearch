@@ -704,3 +704,11 @@ Result: 42v / 10044.64 / 58616ms / gap 17.85%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 40 — 2026-06-08T10:01:08
+Branch: `experiment/40_biased-random-construction`
+Proposal: Replace deterministic regret-2 route selection with probabilistic choice based on regrets to improve solution diversity.
+Result: 42v / 10306.11 / 191352ms / gap 20.92%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
