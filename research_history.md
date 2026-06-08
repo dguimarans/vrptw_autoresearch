@@ -948,3 +948,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 57 — 2026-06-08T20:49:15
+Branch: `experiment/57_ejection-chain-integration`
+Proposal: Integrate ejection chains for systematic removal and reinsertion of customers, improving solution diversity and escaping local optima.
+Result: 40v / 9869.40 / 49098ms / gap 15.80%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
