@@ -956,3 +956,11 @@ Result: 40v / 9869.40 / 49098ms / gap 15.80%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 58 — 2026-06-08T21:14:43
+Branch: `experiment/58_aggressive-vehicle-reduction`
+Proposal: Modify solve() to prioritize vehicle reduction with a new aggressive_vehicle_reduction() function that attempts multiple passes and subset removals.
+Result: 40v / 9869.40 / 47568ms / gap 15.80%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
