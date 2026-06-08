@@ -36,7 +36,7 @@ RULES:
     Problem, Customer, Route  (Route is a dataclass: Route(customers=[...], load=0.0))
 - Objective: 1) minimise vehicles, 2) minimise total distance.
 - BKS: 36 vehicles / 8522.90 distance (RC1_4_1, 400 customers).
-- Solver hard timeout: 600 seconds. Any O(n²) or larger loop MUST include a time.time() budget check.
+- Solver hard timeout: 4800 seconds. Any O(n²) or larger loop MUST include a time.time() budget check.
 - If an external package is needed, name it in the implementation steps.
 - Never emit the same "descriptor" value twice in a row.
 - If the previous iteration failed, propose a DIFFERENT function or approach.
