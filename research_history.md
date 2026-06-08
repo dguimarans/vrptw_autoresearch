@@ -964,3 +964,25 @@ Result: 40v / 9869.40 / 47568ms / gap 15.80%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 59 — 2026-06-08T21:40:24
+Branch: `experiment/59_iterated-local-search`
+Proposal: Adds an ILS loop with controlled perturbation to escape local optima while maintaining time constraints.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 324, in solve
+    perturb(prob, routes)
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 274, in perturb
+    new_route_cost = dist(depot, c) + dist(c, depot)
+                          ^^^^^
+NameError: name 'depot' is not defined
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
