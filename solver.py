@@ -1,4 +1,71 @@
 from vrptw import *
+import numpy as np
+
+# DEPENDENCY: numpy
+
+# ---------------------------------------------------------------------------
+# Distance matrix — precomputed once per solve() call.
+# Shadows route_distance, route_feasible, and best_insertion_in_route from
+# vrptw.py with versions that use O(1) array lookups instead of math.sqrt.
+# ---------------------------------------------------------------------------
+
+_dist_matrix: "np.ndarray | None" = None
+
+
+def _init_dist_matrix(prob: Problem) -> None:
+    global _dist_matrix
+    coords = np.array([(c.x, c.y) for c in prob.customers])
+    diff = coords[:, None, :] - coords[None, :, :]
+    _dist_matrix = np.sqrt((diff ** 2).sum(axis=2))
+
+
+def route_distance(prob: Problem, customers: list) -> float:
+    if not customers:
+        return 0.0
+    d = _dist_matrix[0, customers[0]]
+    for i in range(1, len(customers)):
+        d += _dist_matrix[customers[i - 1], customers[i]]
+    d += _dist_matrix[customers[-1], 0]
+    return float(d)
+
+
+def route_feasible(prob: Problem, customers: list, extra_load: float = 0.0) -> bool:
+    if not customers:
+        return True
+    t = 0.0
+    load = extra_load
+    prev_id = 0
+    for cid in customers:
+        c = prob.customers[cid]
+        load += c.demand
+        if load > prob.capacity + 1e-9:
+            return False
+        t += _dist_matrix[prev_id, cid]
+        if t < c.ready:
+            t = c.ready
+        if t > c.due + 1e-9:
+            return False
+        t += c.service
+        prev_id = cid
+    return t + _dist_matrix[prev_id, 0] <= prob.customers[0].due + 1e-9
+
+
+def best_insertion_in_route(prob: Problem, route: Route, c_idx: int):
+    c = prob.customers[c_idx]
+    if route.load + c.demand > prob.capacity + 1e-9:
+        return None
+    best = None
+    customers = route.customers
+    for pos in range(len(customers) + 1):
+        prev_id = 0 if pos == 0 else customers[pos - 1]
+        nxt_id  = 0 if pos == len(customers) else customers[pos]
+        delta = (_dist_matrix[prev_id, c_idx] + _dist_matrix[c_idx, nxt_id]
+                 - _dist_matrix[prev_id, nxt_id])
+        candidate = customers[:pos] + [c_idx] + customers[pos:]
+        if route_feasible(prob, candidate, 0.0):
+            if best is None or delta < best[0]:
+                best = (delta, pos)
+    return best
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +310,7 @@ def apply_inter_route_2opt(prob: Problem, routes: list) -> bool:
 # ---------------------------------------------------------------------------
 
 def solve(prob: Problem) -> list:
+    _init_dist_matrix(prob)
     routes = regret2_construction(prob)
     routes = [r for r in routes if r.customers]
 

@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 PLANNER         = "deepseek-headless"
 CODER           = "qwen2.5-coder-headless"
 OLLAMA_URL      = "http://localhost:11434/v1/chat/completions"
+OLLAMA_HEALTH_URL = "http://localhost:11434/api/tags"
 UNLOAD_URL      = "http://localhost:11434/api/generate"
 MAX_REPAIR_ATTEMPTS  = 3
 LLM_RETRY_ATTEMPTS   = 3
@@ -60,6 +61,31 @@ def force_unload(model_name):
         requests.post(UNLOAD_URL, json={"model": model_name, "keep_alive": 0}, timeout=10)
     except Exception:
         pass
+
+
+def check_ollama_health() -> bool:
+    """Return True if Ollama API is reachable and responding."""
+    try:
+        r = requests.get(OLLAMA_HEALTH_URL, timeout=5)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+def ensure_ollama_or_exit():
+    """Check Ollama health; attempt one restart if down; exit if unrecoverable."""
+    if check_ollama_health():
+        return
+    print("\n!!! Ollama is not responding. Attempting restart via systemctl...")
+    run_bash("sudo systemctl restart ollama")
+    print("    Waiting 30s for Ollama to come back up...")
+    time.sleep(30)
+    if check_ollama_health():
+        print("    Ollama recovered. Continuing.")
+        return
+    print("!!! Ollama did not recover. Exiting loop — restart Ollama manually and re-run.")
+    run_bash("git checkout main")
+    sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -615,6 +641,11 @@ while True:
     loop_iteration  += 1
     iterations_done += 1
     timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+    # -----------------------------------------------------------------------
+    # Health check — exit immediately if Ollama is down
+    # -----------------------------------------------------------------------
+    ensure_ollama_or_exit()
 
     # -----------------------------------------------------------------------
     # Start on main; read state
