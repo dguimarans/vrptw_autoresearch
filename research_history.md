@@ -1260,3 +1260,11 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 69 — 2026-06-09T07:12:27
+Branch: `experiment/69_lkh-based-construction`
+Proposal: Replace Regret-2 construction with LKH-based route building for better initial solutions.
+Result: 41v / 9811.95 / 64972ms / gap 15.12%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
