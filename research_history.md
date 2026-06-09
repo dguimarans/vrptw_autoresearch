@@ -1026,3 +1026,23 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 63 — 2026-06-09T01:40:07
+Branch: `experiment/63_iterated-local-search`
+Proposal: Adds iterated local search with perturbation to escape local optima and improve solution quality.
+Result: FAILED RUN — exhausted 3 repair attempts
+Error (last attempt):
+```
+Traceback (most recent call last):
+  File "/home/dguimarans/workspace/vrptw_autoresearch/vrptw.py", line 192, in <module>
+    routes = solve(prob)
+             ^^^^^^^^^^^
+  File "/home/dguimarans/workspace/vrptw_autoresearch/solver.py", line 282, in solve
+    max_runtime = prob.max_duration  # Corrected attribute name
+                  ^^^^^^^^^^^^^^^^^
+AttributeError: 'Problem' object has no attribute 'max_duration'
+```
+Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
+Decision: DISCARDED
+
+---
