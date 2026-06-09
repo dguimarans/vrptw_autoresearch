@@ -1220,3 +1220,11 @@ INFEASIBLE
 Decision: DISCARDED
 
 ---
+
+## Iteration 67 — 2026-06-09T05:59:27
+Branch: `experiment/67_biased-random-construction`
+Proposal: Modify regret2_construction() to use biased random selection based on regrets, improving solution diversity.
+Result: 41v / 9948.00 / 71501ms / gap 16.72%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
