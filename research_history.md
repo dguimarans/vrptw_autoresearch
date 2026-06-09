@@ -1046,3 +1046,11 @@ Vehicles: Inf  Distance: Inf  Time: Inf  Gap: Inf
 Decision: DISCARDED
 
 ---
+
+## Iteration 64 — 2026-06-09T02:48:15
+Branch: `experiment/64_post-move-repair`
+Proposal: Adds a post-improvement feasibility check and repair step in solve() to fix time window violations and capacity issues.
+Result: 40v / 9869.40 / 47528ms / gap 15.80%
+Decision: DISCARDED (quality_improved=False, time_improved=False)
+
+---
