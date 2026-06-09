@@ -1268,3 +1268,321 @@ Result: 41v / 9811.95 / 64972ms / gap 15.12%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 70 — 2026-06-09T07:43:57
+Branch: `experiment/70_iterated-local-search`
+Proposal: Modify solve() to include an ILS loop with controlled perturbation and multiple improvement passes, improving solution quality by escaping local optima.
+Result: INFEASIBLE — solver ran but solution violates constraints
+Vehicles: 40  Distance: 8028.02  Time: 3609590ms  Gap: -5.81%
+Violations:
+INFEASIBLE
+  Customer 288 visited 2 times (must be exactly once)
+  Customer 355 visited 2 times (must be exactly once)
+  Customer 35 visited 2 times (must be exactly once)
+  Customer 307 visited 4 times (must be exactly once)
+  Customer 324 visited 2 times (must be exactly once)
+  Customer 385 visited 3 times (must be exactly once)
+  Customer 380 visited 2 times (must be exactly once)
+  Customer 190 visited 8 times (must be exactly once)
+  Customer 178 visited 2 times (must be exactly once)
+  Customer 120 visited 2 times (must be exactly once)
+  Customer 161 visited 9 times (must be exactly once)
+  Customer 318 visited 4 times (must be exactly once)
+  Customer 400 visited 4 times (must be exactly once)
+  Customer 332 visited 4 times (must be exactly once)
+  Customer 185 visited 2 times (must be exactly once)
+  Customer 33 visited 4 times (must be exactly once)
+  Customer 40 visited 3 times (must be exactly once)
+  Customer 253 visited 3 times (must be exactly once)
+  Customer 275 visited 2 times (must be exactly once)
+  Customer 209 visited 2 times (must be exactly once)
+  Customer 147 visited 4 times (must be exactly once)
+  Customer 146 visited 4 times (must be exactly once)
+  Customer 379 visited 2 times (must be exactly once)
+  Customer 79 visited 2 times (must be exactly once)
+  Customer 322 visited 3 times (must be exactly once)
+  Customer 17 visited 4 times (must be exactly once)
+  Customer 207 visited 4 times (must be exactly once)
+  Customer 123 visited 2 times (must be exactly once)
+  Customer 52 visited 3 times (must be exactly once)
+  Customer 159 visited 8 times (must be exactly once)
+  Customer 330 visited 3 times (must be exactly once)
+  Customer 374 visited 2 times (must be exactly once)
+  Customer 323 visited 3 times (must be exactly once)
+  Customer 259 visited 4 times (must be exactly once)
+  Customer 125 visited 2 times (must be exactly once)
+  Customer 266 visited 3 times (must be exactly once)
+  Customer 224 visited 2 times (must be exactly once)
+  Customer 26 visited 7 times (must be exactly once)
+  Customer 20 visited 4 times (must be exactly once)
+  Customer 285 visited 4 times (must be exactly once)
+  Customer 334 visited 4 times (must be exactly once)
+  Customer 208 visited 4 times (must be exactly once)
+  Customer 278 visited 2 times (must be exactly once)
+  Customer 381 visited 2 times (must be exactly once)
+  Customer 9 visited 2 times (must be exactly once)
+  Customer 59 visited 5 times (must be exactly once)
+  Customer 153 visited 3 times (must be exactly once)
+  Customer 138 visited 2 times (must be exactly once)
+  Customer 180 visited 2 times (must be exactly once)
+  Customer 175 visited 2 times (must be exactly once)
+  Customer 48 visited 2 times (must be exactly once)
+  Customer 66 visited 4 times (must be exactly once)
+  Customer 212 visited 3 times (must be exactly once)
+  Customer 60 visited 4 times (must be exactly once)
+  Customer 199 visited 2 times (must be exactly once)
+  Customer 24 visited 2 times (must be exactly once)
+  Customer 281 visited 2 times (must be exactly once)
+  Customer 233 visited 2 times (must be exactly once)
+  Customer 305 visited 4 times (must be exactly once)
+  Customer 289 visited 2 times (must be exactly once)
+  Customer 220 visited 2 times (must be exactly once)
+  Customer 229 visited 2 times (must be exactly once)
+  Customer 386 visited 3 times (must be exactly once)
+  Customer 8 visited 2 times (must be exactly once)
+  Customer 127 visited 2 times (must be exactly once)
+  Customer 90 visited 2 times (must be exactly once)
+  Customer 108 visited 3 times (must be exactly once)
+  Customer 242 visited 5 times (must be exactly once)
+  Customer 344 visited 5 times (must be exactly once)
+  Customer 77 visited 3 times (must be exactly once)
+  Customer 150 visited 2 times (must be exactly once)
+  Customer 177 visited 2 times (must be exactly once)
+  Customer 169 visited 4 times (must be exactly once)
+  Customer 85 visited 4 times (must be exactly once)
+  Customer 250 visited 3 times (must be exactly once)
+  Customer 103 visited 4 times (must be exactly once)
+  Customer 36 visited 4 times (must be exactly once)
+  Customer 354 visited 4 times (must be exactly once)
+  Customer 25 visited 3 times (must be exactly once)
+  Customer 134 visited 2 times (must be exactly once)
+  Customer 158 visited 2 times (must be exactly once)
+  Customer 290 visited 2 times (must be exactly once)
+  Customer 27 visited 2 times (must be exactly once)
+  Customer 303 visited 2 times (must be exactly once)
+  Customer 94 visited 4 times (must be exactly once)
+  Customer 390 visited 2 times (must be exactly once)
+  Customer 74 visited 2 times (must be exactly once)
+  Customer 112 visited 3 times (must be exactly once)
+  Customer 132 visited 3 times (must be exactly once)
+  Customer 293 visited 2 times (must be exactly once)
+  Customer 396 visited 3 times (must be exactly once)
+  Customer 115 visited 3 times (must be exactly once)
+  Customer 327 visited 3 times (must be exactly once)
+  Customer 301 visited 2 times (must be exactly once)
+  Customer 317 visited 2 times (must be exactly once)
+  Customer 47 visited 3 times (must be exactly once)
+  Customer 69 visited 6 times (must be exactly once)
+  Customer 84 visited 3 times (must be exactly once)
+  Customer 302 visited 2 times (must be exactly once)
+  Customer 341 visited 2 times (must be exactly once)
+  Customer 268 visited 3 times (must be exactly once)
+  Customer 124 visited 3 times (must be exactly once)
+  Customer 319 visited 4 times (must be exactly once)
+  Customer 363 visited 4 times (must be exactly once)
+  Customer 167 visited 4 times (must be exactly once)
+  Customer 214 visited 2 times (must be exactly once)
+  Customer 200 visited 4 times (must be exactly once)
+  Customer 321 visited 3 times (must be exactly once)
+  Customer 45 visited 4 times (must be exactly once)
+  Customer 13 visited 4 times (must be exactly once)
+  Customer 240 visited 3 times (must be exactly once)
+  Customer 273 visited 4 times (must be exactly once)
+  Customer 88 visited 4 times (must be exactly once)
+  Customer 81 visited 3 times (must be exactly once)
+  Customer 336 visited 4 times (must be exactly once)
+  Customer 102 visited 4 times (must be exactly once)
+  Customer 57 visited 3 times (must be exactly once)
+  Customer 350 visited 2 times (must be exactly once)
+  Customer 280 visited 2 times (must be exactly once)
+  Customer 227 visited 2 times (must be exactly once)
+  Customer 188 visited 3 times (must be exactly once)
+  Customer 2 never visited
+  Customer 3 never visited
+  Customer 5 never visited
+  Customer 6 never visited
+  Customer 7 never visited
+  Customer 11 never visited
+  Customer 12 never visited
+  Customer 14 never visited
+  Customer 15 never visited
+  Customer 18 never visited
+  Customer 19 never visited
+  Customer 21 never visited
+  Customer 23 never visited
+  Customer 28 never visited
+  Customer 30 never visited
+  Customer 32 never visited
+  Customer 34 never visited
+  Customer 37 never visited
+  Customer 38 never visited
+  Customer 39 never visited
+  Customer 41 never visited
+  Customer 42 never visited
+  Customer 44 never visited
+  Customer 49 never visited
+  Customer 53 never visited
+  Customer 54 never visited
+  Customer 56 never visited
+  Customer 58 never visited
+  Customer 61 never visited
+  Customer 62 never visited
+  Customer 63 never visited
+  Customer 64 never visited
+  Customer 65 never visited
+  Customer 68 never visited
+  Customer 72 never visited
+  Customer 73 never visited
+  Customer 75 never visited
+  Customer 76 never visited
+  Customer 80 never visited
+  Customer 83 never visited
+  Customer 86 never visited
+  Customer 92 never visited
+  Customer 93 never visited
+  Customer 98 never visited
+  Customer 105 never visited
+  Customer 107 never visited
+  Customer 114 never visited
+  Customer 116 never visited
+  Customer 117 never visited
+  Customer 118 never visited
+  Customer 119 never visited
+  Customer 121 never visited
+  Customer 122 never visited
+  Customer 126 never visited
+  Customer 129 never visited
+  Customer 130 never visited
+  Customer 131 never visited
+  Customer 133 never visited
+  Customer 135 never visited
+  Customer 140 never visited
+  Customer 141 never visited
+  Customer 142 never visited
+  Customer 143 never visited
+  Customer 144 never visited
+  Customer 148 never visited
+  Customer 151 never visited
+  Customer 154 never visited
+  Customer 156 never visited
+  Customer 160 never visited
+  Customer 163 never visited
+  Customer 164 never visited
+  Customer 165 never visited
+  Customer 166 never visited
+  Customer 168 never visited
+  Customer 170 never visited
+  Customer 171 never visited
+  Customer 173 never visited
+  Customer 174 never visited
+  Customer 179 never visited
+  Customer 182 never visited
+  Customer 183 never visited
+  Customer 184 never visited
+  Customer 187 never visited
+  Customer 191 never visited
+  Customer 193 never visited
+  Customer 194 never visited
+  Customer 196 never visited
+  Customer 197 never visited
+  Customer 198 never visited
+  Customer 201 never visited
+  Customer 202 never visited
+  Customer 203 never visited
+  Customer 206 never visited
+  Customer 210 never visited
+  Customer 211 never visited
+  Customer 213 never visited
+  Customer 215 never visited
+  Customer 217 never visited
+  Customer 218 never visited
+  Customer 219 never visited
+  Customer 221 never visited
+  Customer 225 never visited
+  Customer 228 never visited
+  Customer 231 never visited
+  Customer 232 never visited
+  Customer 235 never visited
+  Customer 238 never visited
+  Customer 241 never visited
+  Customer 243 never visited
+  Customer 244 never visited
+  Customer 245 never visited
+  Customer 246 never visited
+  Customer 248 never visited
+  Customer 249 never visited
+  Customer 251 never visited
+  Customer 254 never visited
+  Customer 256 never visited
+  Customer 257 never visited
+  Customer 261 never visited
+  Customer 264 never visited
+  Customer 267 never visited
+  Customer 269 never visited
+  Customer 272 never visited
+  Customer 274 never visited
+  Customer 276 never visited
+  Customer 277 never visited
+  Customer 282 never visited
+  Customer 283 never visited
+  Customer 284 never visited
+  Customer 287 never visited
+  Customer 292 never visited
+  Customer 294 never visited
+  Customer 296 never visited
+  Customer 298 never visited
+  Customer 299 never visited
+  Customer 300 never visited
+  Customer 304 never visited
+  Customer 308 never visited
+  Customer 310 never visited
+  Customer 311 never visited
+  Customer 312 never visited
+  Customer 313 never visited
+  Customer 314 never visited
+  Customer 315 never visited
+  Customer 316 never visited
+  Customer 320 never visited
+  Customer 325 never visited
+  Customer 326 never visited
+  Customer 328 never visited
+  Customer 329 never visited
+  Customer 331 never visited
+  Customer 333 never visited
+  Customer 337 never visited
+  Customer 338 never visited
+  Customer 339 never visited
+  Customer 340 never visited
+  Customer 347 never visited
+  Customer 348 never visited
+  Customer 349 never visited
+  Customer 351 never visited
+  Customer 352 never visited
+  Customer 358 never visited
+  Customer 359 never visited
+  Customer 360 never visited
+  Customer 361 never visited
+  Customer 362 never visited
+  Customer 365 never visited
+  Customer 367 never visited
+  Customer 368 never visited
+  Customer 369 never visited
+  Customer 370 never visited
+  Customer 371 never visited
+  Customer 372 never visited
+  Customer 373 never visited
+  Customer 376 never visited
+  Customer 378 never visited
+  Customer 382 never visited
+  Customer 383 never visited
+  Customer 384 never visited
+  Customer 387 never visited
+  Customer 388 never visited
+  Customer 392 never visited
+  Customer 393 never visited
+  Customer 395 never visited
+  Customer 397 never visited
+  Customer 399 never visited
+Decision: DISCARDED
+
+---
