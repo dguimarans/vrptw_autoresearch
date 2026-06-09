@@ -1228,3 +1228,35 @@ Result: 41v / 9948.00 / 71501ms / gap 16.72%
 Decision: DISCARDED (quality_improved=False, time_improved=False)
 
 ---
+
+## Iteration 68 — 2026-06-09T06:30:39
+Branch: `experiment/68_iterated-local-search`
+Proposal: Adds iterated local search with perturbation to escape local optima and improve solution quality.
+Result: INFEASIBLE — solver ran but solution violates constraints
+Vehicles: 39  Distance: 9478.28  Time: 276766ms  Gap: 11.21%
+Violations:
+INFEASIBLE
+  Customer 15 never visited
+  Customer 23 never visited
+  Customer 30 never visited
+  Customer 73 never visited
+  Customer 74 never visited
+  Customer 75 never visited
+  Customer 92 never visited
+  Customer 109 never visited
+  Customer 115 never visited
+  Customer 148 never visited
+  Customer 151 never visited
+  Customer 158 never visited
+  Customer 230 never visited
+  Customer 253 never visited
+  Customer 260 never visited
+  Customer 267 never visited
+  Customer 275 never visited
+  Customer 289 never visited
+  Customer 308 never visited
+  Customer 339 never visited
+  Customer 394 never visited
+Decision: DISCARDED
+
+---
